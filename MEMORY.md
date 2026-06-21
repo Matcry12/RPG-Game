@@ -19,6 +19,12 @@ _Format each as:_
 > ### YYYY-MM-DD — <what went wrong, one line>
 > **What happened:** … **Root cause:** … **Fix / what to do instead:** … **Watch for:** <how to catch it early next time>
 
+### 2026-06-22 — Groq `tool_use_failed` 400 when the tool-proposal prompt also asks for roleplay prose
+**What happened:** First live `/talk` round-trip crashed with `groq.BadRequestError: tool_use_failed` (HTTP 400). Llama-3.3-70b on Groq emitted in-character prose AND a malformed inline tool call (`<function=UpdateDisposition({"delta": -2})</function>`) in a single message; Groq's server-side parser rejected the whole generation. The error is raised by `tool_llm.ainvoke()` (the API call itself), so the existing try/except around *argument parsing* never saw it → uncaught 500.
+**Root cause:** (1) The propose call reused the full chatty NPC persona as its system prompt at temperature 0.7, so the model tried to roleplay and emit a tool call at once → malformed dual output. (2) The robustness guard sat at the wrong layer (arg parse, not the `ainvoke` API boundary).
+**Fix / what to do instead:** Separate the two LLM jobs. The propose/tool-decision call uses a **terse tool-routing system prompt** ("decide the tool; write NO dialogue") at **temperature 0** for well-formed tool calls; the in-character prose stays in the separate generate call (temp 0.7, no tools). Wrap the propose `ainvoke` in `try/except groq.BadRequestError` — a failed proposal is best-effort and must never break the turn (degrade to "no tool", still reply).
+**Watch for:** Any Groq/Llama tool-calling path where one call must both emit prose and call a tool, or runs at high temperature — both make `tool_use_failed` likely. Catch provider errors at the **API-call boundary**, not only at parse time. This will matter again for `GiveReward`/`StartQuest` (S2) and the local Gemma path (S10).
+
 ### 2026-06-21 — Project memory file is `MEMORY.md` (uppercase), and a bulk sed broke link targets
 **What happened:** Wrote the memory file as `memory.md`; it persisted on disk as `MEMORY.md`. References and the SessionStart hook pointed at `memory.md`, which doesn't resolve on case-sensitive Linux. Fixing it with `sed 's/memory.md/MEMORY.md/g'` also rewrote the `layered-memory.md` wiki link to a dead `layered-MEMORY.md`.
 **Root cause:** (1) The memory file is canonically `MEMORY.md` here; (2) the sed pattern was too broad — it matched `memory.md` inside the unrelated filename `layered-memory.md`.
@@ -50,10 +56,11 @@ Resolved in `docs/npc-agent-service/v2/plan.md` §10 (were §9 in v1).
 
 ## Current phase
 
-**S0 ✅ done → S1 next.** S0 (FastAPI + `ChatGroq` streaming a persona reply) is built and **live-verified 2026-06-22** — `/npc/shopkeeper/talk` streams Mira Thistlewick in-character from Groq; 3 mocked unit tests pass. Next: **S1** — Pydantic tool schemas + propose/dispose gate (`UpdateDisposition`, clamp delta to [-10,10]) against a minimal SQLite schema (the spine — tickets in `docs/npc-agent-service/v2/implementation.md`). Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
+**S0 ✅ · S1 ✅ done → S2 next.** S1 (propose/dispose spine) is **live-verified 2026-06-22**: a real Groq tool call proposes `UpdateDisposition`, the gate clamps to [-10,10] and persists to SQLite, `/state` reflects it. Reviewed (invariant holds — clamp can't be bypassed, SQLite sole truth); hardened with malformed-arg guard, `groq.BadRequestError` catch, separate temp-0 tool-routing prompt, and a `disposition_tool_enabled` flag. 19 tests pass. Next: **S2** — `GiveReward`/`StartQuest`, the gate's *reject* path + in-character refusal regeneration (generalize the gate into one `validate(call, db)` dispatch — no duplication). Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
 
 ## Project state snapshot
 
 - Monorepo: `backend/` `game/` `shared/{contracts,lore}/` `docs/` created 2026-06-22 (ADR-0003).
 - S0 shipped 2026-06-22: `backend/app/{main,config}.py`, `app/api/talk.py`, `app/serving/llm.py`, `data/personas/shopkeeper.md`, `tests/test_talk_s0.py`. Deps via `uv` (S0 subset only). `backend/.env` holds `GROQ_API_KEY` (gitignored).
+- S1 shipped 2026-06-22: `app/memory/sqlite_store.py` (players/npcs/disposition tables), `app/tools/{schemas,gates}.py`, `app/api/state.py`, propose/dispose wired in `talk.py`, tool LLM at temp 0 + tool-routing prompt in `llm.py`. Tables seed demo `p1`/`shopkeeper`. `*.db` gitignored. Not yet committed/merged at time of writing — user handles git (branch `slice/s1-disposition-gate`).
 - Harness set up: 2026-06-21 (CLAUDE.md, MEMORY.md, docs wiki, .claude/settings.json).

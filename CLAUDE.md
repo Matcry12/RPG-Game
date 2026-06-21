@@ -21,15 +21,15 @@ code — never trusted from the model. The LLM *proposes* actions; code *dispose
 |---|---|
 | API | FastAPI (async, streaming) |
 | Orchestration | LangGraph + SQLite checkpointer (durable per-NPC/per-player state) |
-| **NPC brain (default)** | **Claude API** via a `ModelAdapter` interface |
-| **NPC brain (sidebar)** | **llama.cpp (GGUF Q4) + GBNF grammar** (range proof, not load-bearing) |
-| Tool I/O | Pydantic (validated schemas; provider tool-calling on API, GBNF on local) |
+| **NPC brain (primary)** | **Groq free tier** (`llama-3.3-70b-versatile`) via LangChain `ChatGroq` |
+| **NPC brain (failover)** | **Ollama Gemma 3n** (`gemma3n:e2b`) local via `ChatOllama` + `.with_fallbacks()` |
+| Tool I/O | Pydantic (validated schemas; provider tool-calling on Groq, structured JSON output on local Gemma) |
 | Fuzzy memory | ChromaDB (lore + episodic + beliefs collections) |
 | Authoritative state | SQLite (disposition, quests, inventory, flags, rewards_claimed) |
 | Eval | LLM-as-judge (human-calibrated, ~20 cases) — ablation table + red-team |
 | Config | Feature flags (`MEMORY_STREAM`, `GROUNDING_GATE`, `REFLECTION` in `config.py`) |
 
-**Hardware note:** GTX 1660 SUPER 6GB. vLLM continuous batching is infeasible here (no bf16, KV cache won't fit) — documented as cloud-deploy path only. Local sidebar uses llama.cpp with partial GPU offload.
+**Hardware note:** GTX 1660 SUPER 6GB. vLLM continuous batching is infeasible here (no bf16, KV cache won't fit) — documented as cloud-deploy path only. Primary brain is remote (Groq), so local hardware never gates the demo; local Gemma 3n runs partial-offload as failover when Groq is rate-limited.
 
 Language: **Python**. Prefer `async` throughout. Use Pydantic models for all tool I/O and API bodies.
 
@@ -44,7 +44,7 @@ Language: **Python**. Prefer `async` throughout. Use Pydantic models for all too
 LangGraph nodes: `retrieve_context` → `plan_response` → `propose_tools` → `grounding_gate` → `generate_reply` → `write_memory`.
 
 The **propose/dispose loop** is the headline of the whole service:
-1. LLM emits a tool call (API tool-calling or GBNF-forced JSON via the `ModelAdapter`).
+1. LLM emits a tool call (provider tool-calling on Groq, or structured JSON on local Gemma).
 2. A deterministic **gate** validates it against SQLite ground truth.
 3. Accepted → execute + write an `episodic` memory event. Rejected → feed the reason back to the LLM.
 
@@ -96,6 +96,27 @@ produces nothing runnable until the very end).
    assumption, a failed command, a dead-end approach, a misread spec — record it *before moving on*,
    with root cause and what to do instead. Check that section before repeating a class of work so we
    don't re-make the same mistake.
+
+## Two memory systems — what goes where
+
+This project is touched by **two** memory stores. Don't duplicate between them — route by scope:
+
+| | **Built-in Claude memory** | **Project `MEMORY.md`** |
+|---|---|---|
+| Path | `~/.claude/projects/<this-project>/memory/` (outside the repo) | repo root (in the repo) |
+| Loaded | **Automatically** — index every session, facts via `<system-reminder>` | Only when read (SessionStart hook surfaces phase + latest mistake) |
+| Ships with repo? | No (machine-local, personal) | Yes (git-tracked, visible to collaborators/CI) |
+| Shape | one atomic fact per file + `MEMORY.md` index | one running document |
+
+**Routing rule:**
+- **Cross-session facts about the user or how to work** (preferences, standing guardrails like
+  *check-git-before-coding*) → **built-in memory** (atomic, auto-loaded).
+- **Project decisions, mistakes, resolved questions, current phase** that should ship with the code →
+  **`MEMORY.md`** (this repo). Decisions still get a full ADR in `docs/decisions/`; `MEMORY.md` keeps
+  the Mistakes & Lessons log + state snapshot.
+
+If a fact is "about this codebase and should travel in the repo," it's `MEMORY.md`. If it's "about me
+/ how Claude should behave across all my work," it's built-in memory.
 
 ## Building a feature — reuse first, don't duplicate
 
@@ -164,8 +185,8 @@ implementation; Haiku for lookups, mechanical edits, and per-item work).
 
 These were open questions in v1 §9; all are resolved in `docs/npc-agent-service/v2/plan.md` §10. See `MEMORY.md` for the full table.
 
-1. **GPU/CPU target** → GTX 1660 SUPER 6GB. API brain is default; llama.cpp partial-offload sidebar. vLLM = cloud path only.
-2. **Which local model** → Claude API default; GGUF Q4 (reuse the Rabbook 4.6B) for the sidebar comparison.
+1. **GPU/CPU target** → GTX 1660 SUPER 6GB. Primary brain is Groq (remote); local Gemma 3n partial-offload as failover. vLLM = cloud path only.
+2. **Which brain/model** → Groq free tier (`llama-3.3-70b-versatile`) as primary; local Ollama Gemma 3n (`gemma3n:e2b`) as failover via `.with_fallbacks()`. See ADR-0001.
 3. **Per-player vs global** → Per-player from day 1, keyed by `(npc_id, player_id)`. Single demo player for MVP.
 4. **Sync vs async** → Sync request/response with token streaming; reflection runs as a background pass.
 5. **Lore authoring** → LLM-generated structured JSON lorebook, hand-curated, then embedded into Chroma.
