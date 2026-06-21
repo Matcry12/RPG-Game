@@ -50,9 +50,10 @@ Resolved in `docs/npc-agent-service/v2/plan.md` §10 (were §9 in v1).
 
 ## Current phase
 
-**Slices S0 → S1.** First task: stand up FastAPI + LangChain `ChatGroq` streaming a persona reply (S0), then the Pydantic tool schemas and propose/dispose gate (`UpdateDisposition`) against a minimal SQLite schema (the spine — `docs/npc-agent-service/v2/plan.md` §11, tickets in `docs/npc-agent-service/v2/implementation.md`). Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
+**S0 ✅ done → S1 next.** S0 (FastAPI + `ChatGroq` streaming a persona reply) is built and **live-verified 2026-06-22** — `/npc/shopkeeper/talk` streams Mira Thistlewick in-character from Groq; 3 mocked unit tests pass. Next: **S1** — Pydantic tool schemas + propose/dispose gate (`UpdateDisposition`, clamp delta to [-10,10]) against a minimal SQLite schema (the spine — tickets in `docs/npc-agent-service/v2/implementation.md`). Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
 
 ## Project state snapshot
 
-- Monorepo: `backend/` `game/` `shared/{contracts,lore}/` `docs/` created 2026-06-22 (ADR-0003); no code yet — `backend/app/` not created until S0.
+- Monorepo: `backend/` `game/` `shared/{contracts,lore}/` `docs/` created 2026-06-22 (ADR-0003).
+- S0 shipped 2026-06-22: `backend/app/{main,config}.py`, `app/api/talk.py`, `app/serving/llm.py`, `data/personas/shopkeeper.md`, `tests/test_talk_s0.py`. Deps via `uv` (S0 subset only). `backend/.env` holds `GROQ_API_KEY` (gitignored).
 - Harness set up: 2026-06-21 (CLAUDE.md, MEMORY.md, docs wiki, .claude/settings.json).
