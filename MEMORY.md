@@ -56,7 +56,7 @@ Resolved in `docs/npc-agent-service/v2/plan.md` §10 (were §9 in v1).
 
 ## Current phase
 
-**S0 ✅ done → S1 next.** S0 (FastAPI + `ChatGroq` streaming a persona reply) is built and **live-verified 2026-06-22** — `/npc/shopkeeper/talk` streams Mira Thistlewick in-character from Groq; 3 mocked unit tests pass. Next: **S1** — Pydantic tool schemas + propose/dispose gate (`UpdateDisposition`, clamp delta to [-10,10]) against a minimal SQLite schema (the spine — tickets in `docs/npc-agent-service/v2/implementation.md`). Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
+**S0 ✅ · S1 ✅ done → S2 next.** S1 (propose/dispose spine) is **live-verified 2026-06-22**: a real Groq tool call proposes `UpdateDisposition`, the gate clamps to [-10,10] and persists to SQLite, `/state` reflects it. Reviewed (invariant holds — clamp can't be bypassed, SQLite sole truth); hardened with malformed-arg guard, `groq.BadRequestError` catch, separate temp-0 tool-routing prompt, and a `disposition_tool_enabled` flag. 19 tests pass. Next: **S2** — `GiveReward`/`StartQuest`, the gate's *reject* path + in-character refusal regeneration (generalize the gate into one `validate(call, db)` dispatch — no duplication). Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
 
 ## Project state snapshot
 
