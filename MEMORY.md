@@ -62,4 +62,5 @@ Resolved in `docs/npc-agent-service/v2/plan.md` §10 (were §9 in v1).
 
 - Monorepo: `backend/` `game/` `shared/{contracts,lore}/` `docs/` created 2026-06-22 (ADR-0003).
 - S0 shipped 2026-06-22: `backend/app/{main,config}.py`, `app/api/talk.py`, `app/serving/llm.py`, `data/personas/shopkeeper.md`, `tests/test_talk_s0.py`. Deps via `uv` (S0 subset only). `backend/.env` holds `GROQ_API_KEY` (gitignored).
+- S1 shipped 2026-06-22: `app/memory/sqlite_store.py` (players/npcs/disposition tables), `app/tools/{schemas,gates}.py`, `app/api/state.py`, propose/dispose wired in `talk.py`, tool LLM at temp 0 + tool-routing prompt in `llm.py`. Tables seed demo `p1`/`shopkeeper`. `*.db` gitignored. Not yet committed/merged at time of writing — user handles git (branch `slice/s1-disposition-gate`).
 - Harness set up: 2026-06-21 (CLAUDE.md, MEMORY.md, docs wiki, .claude/settings.json).
