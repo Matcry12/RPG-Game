@@ -25,7 +25,7 @@ Each ticket: **Goal · Layers cut · Files · Key decisions · Done = (acceptanc
 ### S0 — NPC echoes a persona reply over `/talk`
 - **Goal:** prove the spine of the request path with a real LLM.
 - **Layers:** FastAPI route → `ChatGroq` → streamed reply.
-- **Files:** `backend/app/main.py`, `backend/app/api/talk.py`, `backend/app/serving/llm.py`, `backend/app/config.py`, `data/personas/shopkeeper.md`.
+- **Files:** `backend/app/main.py`, `backend/app/api/talk.py`, `backend/app/serving/llm.py`, `backend/app/config.py`, `backend/data/personas/shopkeeper.md`.
 - **Key decisions:** `llm.py` exposes `get_llm()` returning `ChatGroq(model=settings.groq_model, temperature=0.7)`. `/npc/{id}/talk` streams via FastAPI `StreamingResponse` over `llm.astream(messages)`. Persona loaded from a markdown file as the system prompt. No memory, no tools yet.
 - **Done =** `curl -N` the endpoint with a message → in-character tokens stream back from Groq.
 - **Verify:** `curl -N -X POST localhost:8000/npc/shopkeeper/talk -d '{"player_id":"p1","message":"hello","location":"shop"}'`
@@ -78,7 +78,7 @@ Each ticket: **Goal · Layers cut · Files · Key decisions · Done = (acceptanc
 ### S5 — Grounded in lore, refuses to invent: Chroma lore + grounding gate
 - **Goal:** lore RAG + hallucination control.
 - **Layers:** lorebook pipeline → Chroma `lore` → retrieve_context → grounding_gate on the answer.
-- **Files:** `data/gen_lorebook.py`, `data/lorebook.json`, `backend/app/api/world.py` (`POST /world/seed`), extend `backend/app/memory/vector_store.py` + the gate.
+- **Files:** `backend/data/gen_lorebook.py`, `backend/data/lorebook.json`, `backend/app/api/world.py` (`POST /world/seed`), extend `backend/app/memory/vector_store.py` + the gate.
 - **Key decisions:**
   - `gen_lorebook.py`: LLM generates structured JSON lore, hand-curated, committed. `/world/seed` embeds it once into Chroma `lore`.
   - `retrieve_context` also pulls top-k lore. **Grounding gate** (flag `GROUNDING_GATE`): if the drafted answer makes a world claim with no supporting lore hit above a threshold, block/soften it.
