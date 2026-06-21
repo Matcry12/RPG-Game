@@ -1,0 +1,71 @@
+# ── Secrets / env ───────────────────────────────────────────────
+# GROQ_API_KEY and any local config live here — never commit.
+.env
+.env.*
+!.env.example
+
+# ── Python (backend/) ───────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.installed.cfg
+*.egg
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+
+# ── Project runtime artifacts (the LLM-never-owns-truth state) ──
+# SQLite authoritative state + LangGraph checkpointer DBs
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+# ChromaDB persistence
+chroma/
+.chroma/
+backend/data/chroma/
+# Generated lore artifacts (source lore is committed in shared/lore/)
+backend/data/lorebook.embedded.json
+
+# ── Godot (game/) ───────────────────────────────────────────────
+# Godot 4 import cache + temp
+game/.godot/
+game/.import/
+game/export.cfg
+game/export_presets.cfg
+# Mono/C# (if used later)
+game/.mono/
+game/data_*/
+
+# ── Editors / OS ────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# ── OMC / harness scratch (keep durable docs, drop ephemera) ────
+.omc/logs/
+.omc/state/
+.omc/notepad.md
