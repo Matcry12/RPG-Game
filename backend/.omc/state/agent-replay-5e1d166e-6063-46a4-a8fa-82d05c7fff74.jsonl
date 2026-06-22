@@ -66,3 +66,5 @@
 {"t":0,"agent":"a59536a","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":190404}
 {"t":0,"agent":"a59536a","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":196821}
 {"t":0,"agent":"a59536a","agent_type":"Explore","event":"agent_stop","success":true,"duration_ms":199069}
+{"t":0,"agent":"a2f22c5","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"ad2c99b","agent_type":"unknown","event":"agent_stop","success":true}

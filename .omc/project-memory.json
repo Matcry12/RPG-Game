@@ -195,6 +195,12 @@
       "accessCount": 1,
       "lastAccessed": 1782119268963,
       "type": "file"
+    },
+    {
+      "path": "backend/app/main.py",
+      "accessCount": 1,
+      "lastAccessed": 1782138889032,
+      "type": "file"
     }
   ],
   "userDirectives": []
