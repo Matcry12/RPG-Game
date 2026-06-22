@@ -54,8 +54,6 @@
       "Bash(git push --force:*)",
       "Bash(git reset --hard:*)",
       "Bash(sudo:*)",
-      "Bash(curl:* | sh)",
-      "Bash(curl:* | bash)",
       "Read(./.env)",
       "Read(./**/.env)",
       "Read(./**/*.key)",
