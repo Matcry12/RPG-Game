@@ -1,7 +1,7 @@
 {
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"cd backend && echo \\\"=== llm.py temp-0 tool client ===\\\" && grep -n \\\"temperature\\\" app/serving/llm.py && echo \\\"\\\" && echo \\\"=== talk.py: groq catch + separate propose prompt ===\\\" && gre...",
-  "error": "Exit code 1\n/bin/bash: line 1: cd: backend: No such file or directory",
-  "timestamp": "2026-06-21T19:19:16.937Z",
-  "retry_count": 1
+  "tool_name": "mcp__plugin_oh-my-claudecode_t__lsp_diagnostics",
+  "tool_input_preview": "{\"file\":\"/home/matcry/Developer/RPG-Game/backend/app/api/talk.py\"}",
+  "error": "Language server 'ty' not found.\nInstall with: Install ty from https://github.com/astral-sh/ty",
+  "timestamp": "2026-06-22T09:02:16.279Z",
+  "retry_count": 2
 }

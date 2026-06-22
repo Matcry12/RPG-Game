@@ -10,7 +10,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": null,
+    "testCommand": "cd /home/matcry/Developer/RPG-Game/backend && .venv/bin/python -m pytest tests/test_talk_s0.py tests/test_talk_state_s1.py tests/test_gate_disposition.py tests/test_gate_reward.py -v 2>&1 | tail -60",
     "lintCommand": null,
     "devCommand": null,
     "scripts": {}
@@ -95,9 +95,105 @@
   },
   "hotPaths": [
     {
+      "path": "backend/app/memory/sqlite_store.py",
+      "accessCount": 10,
+      "lastAccessed": 1782119374738,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/tools/gates.py",
+      "accessCount": 7,
+      "lastAccessed": 1782119279918,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/api/talk.py",
+      "accessCount": 7,
+      "lastAccessed": 1782119285641,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_gate_reward.py",
+      "accessCount": 7,
+      "lastAccessed": 1782119375163,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_talk_state_s1.py",
+      "accessCount": 4,
+      "lastAccessed": 1782110337458,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/tools/schemas.py",
+      "accessCount": 3,
+      "lastAccessed": 1782110151701,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/config.py",
+      "accessCount": 3,
+      "lastAccessed": 1782110200812,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/serving/llm.py",
+      "accessCount": 3,
+      "lastAccessed": 1782110208637,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/api/state.py",
+      "accessCount": 3,
+      "lastAccessed": 1782110254317,
+      "type": "file"
+    },
+    {
       "path": ".claude/settings.json",
       "accessCount": 2,
       "lastAccessed": 1782106219674,
+      "type": "file"
+    },
+    {
+      "path": "docs/npc-agent-service/v2/implementation.md",
+      "accessCount": 1,
+      "lastAccessed": 1782107951931,
+      "type": "file"
+    },
+    {
+      "path": "docs/npc-agent-service/v2/plan.md",
+      "accessCount": 1,
+      "lastAccessed": 1782107952310,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_gate_disposition.py",
+      "accessCount": 1,
+      "lastAccessed": 1782110141844,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_talk_s0.py",
+      "accessCount": 1,
+      "lastAccessed": 1782110340493,
+      "type": "file"
+    },
+    {
+      "path": "docs/decisions/0000-template.md",
+      "accessCount": 1,
+      "lastAccessed": 1782119234819,
+      "type": "file"
+    },
+    {
+      "path": "docs/decisions/0004-rejection-feedback-via-persona-prompt.md",
+      "accessCount": 1,
+      "lastAccessed": 1782119260119,
+      "type": "file"
+    },
+    {
+      "path": "docs/decisions/README.md",
+      "accessCount": 1,
+      "lastAccessed": 1782119268963,
       "type": "file"
     }
   ],

@@ -15,3 +15,17 @@ class UpdateDisposition(BaseModel):
             "Bounded to [-10, 10] by the gate regardless of the value proposed here."
         )
     )
+
+
+class GiveReward(BaseModel):
+    """NPC grants an item reward for a completed quest."""
+
+    quest_id: str = Field(description="ID of the completed quest the reward is for.")
+    item_id: str = Field(description="ID of the item to grant the player.")
+    reason: str = Field(description="Brief in-world reason the NPC is giving this reward.")
+
+
+class StartQuest(BaseModel):
+    """Begin a quest the player hasn't started."""
+
+    quest_id: str = Field(description="ID of the quest to begin for the player.")
