@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1782103503634,
+  "projectRoot": "/home/matcry/Developer/RPG-Game",
+  "techStack": {
+    "languages": [],
+    "frameworks": [],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "backend": {
+      "path": "backend",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1782103503630,
+      "keyFiles": [
+        "README.md",
+        "pyproject.toml",
+        "uv.lock"
+      ]
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 1,
+      "lastAccessed": 1782103503632,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "game": {
+      "path": "game",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1782103503632,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "shared": {
+      "path": "shared",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1782103503632,
+      "keyFiles": [
+        "README.md"
+      ]
+    },
+    "backend/app": {
+      "path": "backend/app",
+      "purpose": "Application code",
+      "fileCount": 3,
+      "lastAccessed": 1782103503633,
+      "keyFiles": [
+        "__init__.py",
+        "config.py",
+        "main.py"
+      ]
+    },
+    "backend/data": {
+      "path": "backend/data",
+      "purpose": "Data files",
+      "fileCount": 1,
+      "lastAccessed": 1782103503633,
+      "keyFiles": [
+        "npc.db"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": ".claude/settings.json",
+      "accessCount": 2,
+      "lastAccessed": 1782106219674,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}
