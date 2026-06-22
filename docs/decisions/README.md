@@ -23,3 +23,5 @@ Copy `0000-template.md` for each new decision.
 | [0001](0001-groq-primary-brain-local-fallback.md) | Groq free tier as primary NPC brain, local Gemma 3n failover | Accepted | 2026-06-22 |
 | [0002](0002-vertical-slice-build-approach.md) | Build in vertical slices (tracer bullets), not horizontal layers | Accepted | 2026-06-22 |
 | [0003](0003-monorepo-layout.md) | Monorepo layout: backend / game / shared at the repo root | Accepted | 2026-06-22 |
+| [0004](0004-rejection-feedback-via-persona-prompt.md) | Rejection feedback conditions the prose generation, not a second tool round-trip | Accepted | 2026-06-22 |
+| [0005](0005-agentic-tool-loop-at-s4.md) | Adopt an agentic tool-calling loop at S4 (replace the linear two-call flow) | Accepted | 2026-06-22 |

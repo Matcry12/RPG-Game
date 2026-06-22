@@ -54,6 +54,7 @@ Each ticket: **Goal · Layers cut · Files · Key decisions · Done = (acceptanc
   - On reject: feed the reason back to the LLM as a tool/assistant message → it regenerates an in-character refusal. On accept: mutate SQLite, insert `rewards_claimed`.
 - **Done =** asking for the reward early → gate rejects → NPC refuses in character, SQLite unchanged; completing the quest → reward granted exactly once (second attempt rejected by `rewards_claimed`).
 - **Verify:** `pytest backend/tests/test_gate_reward.py` (idempotency + precondition) + manual.
+- **Known limitation (resolved in S4):** the turn is linear — one tool call per turn (extras dropped), and a rejection only colors the prose; the NPC can't re-decide and try a different action. The agentic tool-loop in S4 lifts this ([ADR-0005](../../decisions/0005-agentic-tool-loop-at-s4.md)).
 
 ### S3 — The NPC remembers what just happened: episodic write + recall
 - **Goal:** first memory layer — events persist and re-enter context.
@@ -72,6 +73,7 @@ Each ticket: **Goal · Layers cut · Files · Key decisions · Done = (acceptanc
 - **Key decisions:**
   - Reuse S1–S3 functions as graph **nodes** (`retrieve_context → plan → propose_tools → gate → generate → write_memory`). No logic rewrite — just composition.
   - `SqliteSaver` checkpointer; `thread_id` keyed per `(npc_id, player_id)`.
+  - **Replace the linear two-call flow with an agentic tool-loop** ([ADR-0005](../../decisions/0005-agentic-tool-loop-at-s4.md)): an `agent` node cycles with a **gate-backed tools node** (`gates.validate` on every call) until no tool calls remain, then renders the reply — enabling multi-tool turns + react-to-rejection. Must preserve the `tool_use_failed` mitigation (tool-decision turns stay prose-free). Loop *shape* is an S4 deep-dive (see ADR-0005 open items).
 - **Done =** kill the server mid-conversation, restart, reconnect as the same player → NPC continues with full conversational context (checkpoint restored).
 - **Verify:** start convo → `kill` uvicorn → restart → next message shows continuity; checkpoint row exists in the saver DB.
 

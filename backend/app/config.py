@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     groq_model: str = "llama-3.3-70b-versatile"
     persona_dir: Path = _BACKEND_DIR / "data" / "personas"
     db_path: Path = _BACKEND_DIR / "data" / "npc.db"
-    disposition_tool_enabled: bool = True
+    tools_enabled: bool = True
 
 
 settings = Settings()

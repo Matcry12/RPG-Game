@@ -27,12 +27,12 @@ def get_tool_llm():
     in-character prose AND a tool call simultaneously, which Groq rejects as
     ``tool_use_failed`` (400). Temperature 0 keeps the response structured.
 
-    When ``settings.disposition_tool_enabled`` is False the plain low-temp LLM is
-    returned with no tools bound, so the model cannot propose the tool at all.
+    When ``settings.tools_enabled`` is False the plain low-temp LLM is
+    returned with no tools bound, so the model cannot propose any tool at all.
     """
-    if not settings.disposition_tool_enabled:
+    if not settings.tools_enabled:
         return _base_groq(temperature=0)
 
-    from app.tools.schemas import UpdateDisposition  # local import avoids circular refs
+    from app.tools.schemas import GiveReward, StartQuest, UpdateDisposition  # local import avoids circular refs
 
-    return _base_groq(temperature=0).bind_tools([UpdateDisposition])
+    return _base_groq(temperature=0).bind_tools([UpdateDisposition, GiveReward, StartQuest])

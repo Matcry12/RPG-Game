@@ -67,7 +67,7 @@ def tmp_db(tmp_path, monkeypatch):
     return db_file
 
 
-def _patched_settings(db_file: Path, *, disposition_tool_enabled: bool = True):
+def _patched_settings(db_file: Path, *, tools_enabled: bool = True):
     """Return a copy of settings with db_path (and optional flag) overridden."""
     from app.config import settings as real_settings
 
@@ -76,10 +76,10 @@ def _patched_settings(db_file: Path, *, disposition_tool_enabled: bool = True):
         groq_model = real_settings.groq_model
         persona_dir = real_settings.persona_dir
         db_path = db_file
-        disposition_tool_enabled = True  # default; callers may override on the instance
+        tools_enabled = True  # default; callers may override on the instance
 
     s = _S()
-    s.disposition_tool_enabled = disposition_tool_enabled
+    s.tools_enabled = tools_enabled
     return s
 
 
@@ -243,7 +243,7 @@ async def test_propose_uses_tool_routing_prompt_not_persona(tmp_db):
     assert captured_propose_messages, "ainvoke was never called with messages"
     propose_system = captured_propose_messages[0].content
     # Must contain routing instructions
-    assert "disposition-control" in propose_system
+    assert "action-control" in propose_system
     assert "Do NOT write any dialogue" in propose_system
     # Must NOT contain persona text (shopkeeper persona contains "Mira" or "Thistlewick")
     assert "Mira" not in propose_system
@@ -260,7 +260,7 @@ async def test_disposition_tool_disabled_flag_skips_propose(tmp_db, monkeypatch)
       (c) get_tool_llm is never called (propose path was skipped).
     """
     # Build a settings object with the flag off and the same temp DB.
-    disabled_settings = _patched_settings(tmp_db, disposition_tool_enabled=False)
+    disabled_settings = _patched_settings(tmp_db, tools_enabled=False)
 
     # Patch settings in all modules that imported it before this test.
     monkeypatch.setattr("app.api.talk.settings", disabled_settings)
