@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1782103503634,
+  "lastScanned": 1782193940362,
   "projectRoot": "/home/matcry/Developer/RPG-Game",
   "techStack": {
     "languages": [],
@@ -10,7 +10,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd /home/matcry/Developer/RPG-Game/backend && .venv/bin/python -m pytest tests/test_talk_s0.py tests/test_talk_state_s1.py tests/test_gate_disposition.py tests/test_gate_reward.py -v 2>&1 | tail -60",
+    "testCommand": "cd /home/matcry/Developer/RPG-Game/backend && .venv/bin/python -m ruff check app tests --fix 2>&1 && echo \"---PYTEST---\" && .venv/bin/python -m pytest -q 2>&1 | tail -20",
     "lintCommand": null,
     "devCommand": null,
     "scripts": {}
@@ -38,7 +38,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1782103503630,
+      "lastAccessed": 1782193940360,
       "keyFiles": [
         "README.md",
         "pyproject.toml",
@@ -49,7 +49,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1782103503632,
+      "lastAccessed": 1782193940360,
       "keyFiles": [
         "README.md"
       ]
@@ -58,7 +58,7 @@
       "path": "game",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782103503632,
+      "lastAccessed": 1782193940361,
       "keyFiles": [
         "README.md"
       ]
@@ -67,7 +67,7 @@
       "path": "shared",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782103503632,
+      "lastAccessed": 1782193940361,
       "keyFiles": [
         "README.md"
       ]
@@ -76,7 +76,7 @@
       "path": "backend/app",
       "purpose": "Application code",
       "fileCount": 3,
-      "lastAccessed": 1782103503633,
+      "lastAccessed": 1782193940361,
       "keyFiles": [
         "__init__.py",
         "config.py",
@@ -87,7 +87,7 @@
       "path": "backend/data",
       "purpose": "Data files",
       "fileCount": 1,
-      "lastAccessed": 1782103503633,
+      "lastAccessed": 1782193940361,
       "keyFiles": [
         "npc.db"
       ]
@@ -95,45 +95,57 @@
   },
   "hotPaths": [
     {
-      "path": "backend/app/memory/sqlite_store.py",
-      "accessCount": 10,
-      "lastAccessed": 1782119374738,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/tools/gates.py",
-      "accessCount": 7,
-      "lastAccessed": 1782119279918,
-      "type": "file"
-    },
-    {
       "path": "backend/app/api/talk.py",
-      "accessCount": 7,
-      "lastAccessed": 1782119285641,
+      "accessCount": 13,
+      "lastAccessed": 1782199527561,
       "type": "file"
     },
     {
-      "path": "backend/tests/test_gate_reward.py",
-      "accessCount": 7,
-      "lastAccessed": 1782119375163,
+      "path": "backend/app/memory/sqlite_store.py",
+      "accessCount": 11,
+      "lastAccessed": 1782195871225,
       "type": "file"
     },
     {
       "path": "backend/tests/test_talk_state_s1.py",
-      "accessCount": 4,
-      "lastAccessed": 1782110337458,
+      "accessCount": 10,
+      "lastAccessed": 1782199490908,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/tools/gates.py",
+      "accessCount": 9,
+      "lastAccessed": 1782195887114,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_gate_reward.py",
+      "accessCount": 8,
+      "lastAccessed": 1782195877040,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/config.py",
+      "accessCount": 6,
+      "lastAccessed": 1782196004511,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/memory/vector_store.py",
+      "accessCount": 5,
+      "lastAccessed": 1782199512413,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_vector_store.py",
+      "accessCount": 5,
+      "lastAccessed": 1782199734565,
       "type": "file"
     },
     {
       "path": "backend/app/tools/schemas.py",
       "accessCount": 3,
       "lastAccessed": 1782110151701,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/config.py",
-      "accessCount": 3,
-      "lastAccessed": 1782110200812,
       "type": "file"
     },
     {
@@ -156,8 +168,32 @@
     },
     {
       "path": "docs/npc-agent-service/v2/implementation.md",
-      "accessCount": 1,
-      "lastAccessed": 1782107951931,
+      "accessCount": 2,
+      "lastAccessed": 1782195673865,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/main.py",
+      "accessCount": 2,
+      "lastAccessed": 1782195752988,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_talk_s0.py",
+      "accessCount": 2,
+      "lastAccessed": 1782195881738,
+      "type": "file"
+    },
+    {
+      "path": "backend/pyproject.toml",
+      "accessCount": 2,
+      "lastAccessed": 1782195893719,
+      "type": "file"
+    },
+    {
+      "path": "backend/tests/test_talk_recall_s3.py",
+      "accessCount": 2,
+      "lastAccessed": 1782199860159,
       "type": "file"
     },
     {
@@ -170,12 +206,6 @@
       "path": "backend/tests/test_gate_disposition.py",
       "accessCount": 1,
       "lastAccessed": 1782110141844,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/test_talk_s0.py",
-      "accessCount": 1,
-      "lastAccessed": 1782110340493,
       "type": "file"
     },
     {
@@ -194,12 +224,6 @@
       "path": "docs/decisions/README.md",
       "accessCount": 1,
       "lastAccessed": 1782119268963,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/main.py",
-      "accessCount": 1,
-      "lastAccessed": 1782138889032,
       "type": "file"
     }
   ],

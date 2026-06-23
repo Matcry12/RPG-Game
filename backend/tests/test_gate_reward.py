@@ -17,11 +17,9 @@ from app.memory.sqlite_store import (
     set_quest_state,
 )
 from app.tools.gates import (
-    GateResult,
     validate,
     validate_give_reward,
     validate_start_quest,
-    validate_update_disposition,
 )
 from app.tools.schemas import GiveReward, StartQuest, UpdateDisposition
 
