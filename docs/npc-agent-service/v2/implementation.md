@@ -57,6 +57,7 @@ Each ticket: **Goal · Layers cut · Files · Key decisions · Done = (acceptanc
 - **Known limitation (resolved in S4):** the turn is linear — one tool call per turn (extras dropped), and a rejection only colors the prose; the NPC can't re-decide and try a different action. The agentic tool-loop in S4 lifts this ([ADR-0005](../../decisions/0005-agentic-tool-loop-at-s4.md)).
 
 ### S3 — The NPC remembers what just happened: episodic write + recall
+- **Status: ✅ done (2026-06-23).** Linear flow preserved. Chroma `episodic` collection; retrieve-before-generate + write-after-stream wired into `talk.py`; 39 tests pass. Importance is a **provisional heuristic** and recall is **plain similarity** (importance-weighted ranking deferred to S6) — see [ADR-0006](../../decisions/0006-episodic-memory-write-and-recall-policy.md).
 - **Goal:** first memory layer — events persist and re-enter context.
 - **Layers:** write_memory → Chroma `episodic` → retrieve_context.
 - **Files:** `backend/app/memory/vector_store.py`, new graph nodes `write_memory` / `retrieve_context`, wire into `talk.py`.

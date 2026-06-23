@@ -7,8 +7,6 @@ Mocks:
 Uses a temp-file SQLite DB (monkeypatched via settings.db_path) so it never touches npc.db.
 """
 
-import sqlite3
-import tempfile
 from pathlib import Path
 from typing import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -76,11 +74,35 @@ def _patched_settings(db_file: Path, *, tools_enabled: bool = True):
         groq_model = real_settings.groq_model
         persona_dir = real_settings.persona_dir
         db_path = db_file
+        chroma_path = real_settings.chroma_path
         tools_enabled = True  # default; callers may override on the instance
 
     s = _S()
     s.tools_enabled = tools_enabled
     return s
+
+
+@pytest.fixture(autouse=True)
+def _mock_chroma(tmp_path):
+    """Prevent all S1 tests from touching real ChromaDB on disk.
+
+    Patches get_client and get_episodic_collection in talk to return lightweight
+    mocks so episodic read/write never hits the filesystem or downloads a model.
+    """
+    from unittest.mock import MagicMock
+
+    fake_collection = MagicMock()
+    # retrieve_episodic checks collection.count() then calls collection.query().
+    fake_collection.count.return_value = 0
+    fake_collection.query.return_value = {"documents": [[]], "metadatas": [[]]}
+
+    fake_client = MagicMock()
+
+    with (
+        patch("app.api.talk.get_client", return_value=fake_client),
+        patch("app.api.talk.get_episodic_collection", return_value=fake_collection),
+    ):
+        yield
 
 
 # ---------------------------------------------------------------------------

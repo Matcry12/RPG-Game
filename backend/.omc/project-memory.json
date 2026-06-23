@@ -1,0 +1,149 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1782148630689,
+  "projectRoot": "/home/matcry/Developer/RPG-Game/backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastapi",
+        "version": null,
+        "category": "backend"
+      },
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "cd backend && .venv/bin/python -m pytest -q 2>&1 | tail -4\necho \"=== recall-injection test present? ===\"\ngrep -rn \"Things you remember\\|recalled_memory_is_injected\\|lost_locket quest\" tests/ | head\necho \"=== lru_cache on get_client? ===\"\ngrep -n \"lru_cache\\|functools\" app/memory/vector_store.py\necho \"=== chunk coercion + empty-reply guard in talk.py? ===\"\ngrep -n \"isinstance(chunk.content\\|full_reply.strip()\" app/api/talk.py\necho \"=== test embedder name()? ===\"\ngrep -n \"def name\" tests/test_vector_store.py",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": "camelCase/PascalCase",
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 3,
+      "lastAccessed": 1782148630686,
+      "keyFiles": [
+        "__init__.py",
+        "config.py",
+        "main.py"
+      ]
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 1,
+      "lastAccessed": 1782148630686,
+      "keyFiles": [
+        "npc.db"
+      ]
+    },
+    "npc_agent_service.egg-info": {
+      "path": "npc_agent_service.egg-info",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1782148630687,
+      "keyFiles": [
+        "PKG-INFO",
+        "SOURCES.txt",
+        "dependency_links.txt",
+        "requires.txt",
+        "top_level.txt"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 5,
+      "lastAccessed": 1782148630688,
+      "keyFiles": [
+        "__init__.py",
+        "test_gate_disposition.py",
+        "test_gate_reward.py",
+        "test_talk_s0.py",
+        "test_talk_state_s1.py"
+      ]
+    },
+    "app/api": {
+      "path": "app/api",
+      "purpose": "API routes",
+      "fileCount": 3,
+      "lastAccessed": 1782148630688,
+      "keyFiles": [
+        "__init__.py",
+        "state.py",
+        "talk.py"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "app/api/talk.py",
+      "accessCount": 2,
+      "lastAccessed": 1782200203585,
+      "type": "file"
+    },
+    {
+      "path": "app/memory/vector_store.py",
+      "accessCount": 1,
+      "lastAccessed": 1782196719219,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_vector_store.py",
+      "accessCount": 1,
+      "lastAccessed": 1782196719362,
+      "type": "file"
+    },
+    {
+      "path": "app/tools/gates.py",
+      "accessCount": 1,
+      "lastAccessed": 1782196744414,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_state_s1.py",
+      "accessCount": 1,
+      "lastAccessed": 1782196990562,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

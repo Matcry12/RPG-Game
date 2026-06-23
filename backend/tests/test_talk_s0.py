@@ -1,6 +1,6 @@
 """S0 tests — no real Groq calls, LLM is monkeypatched."""
 from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient

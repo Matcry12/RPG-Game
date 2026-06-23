@@ -9,7 +9,7 @@ import sqlite3
 import pytest
 
 from app.memory.sqlite_store import get_disposition, init_db
-from app.tools.gates import DISPOSITION_CLAMP, GateResult, validate_update_disposition
+from app.tools.gates import DISPOSITION_CLAMP, validate_update_disposition
 from app.tools.schemas import UpdateDisposition
 
 NOW = "2026-01-01T00:00:00+00:00"
