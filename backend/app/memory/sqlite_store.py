@@ -14,9 +14,15 @@ from pathlib import Path
 # ---------------------------------------------------------------------------
 
 def connect(db_path: Path | str) -> sqlite3.Connection:
-    """Open (and return) a SQLite connection.  Callers are responsible for closing it."""
-    conn = sqlite3.connect(str(db_path))
+    """Open (and return) a SQLite connection.  Callers are responsible for closing it.
+
+    WAL + a busy timeout let concurrent turns (S4 opens a fresh connection per node)
+    tolerate brief write-lock contention instead of raising ``database is locked``.
+    """
+    conn = sqlite3.connect(str(db_path), timeout=5.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
     return conn
 
 

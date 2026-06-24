@@ -117,6 +117,37 @@ def test_clamp_boundary_plus_11_is_clamped(conn):
 
 
 # ---------------------------------------------------------------------------
+# Stringified delta is coerced (Groq/Llama emits "-8"; schema accepts int|str)
+# ---------------------------------------------------------------------------
+
+def test_string_delta_is_coerced_to_int():
+    """Groq/Llama frequently sends delta as a string ("-8"); the schema must coerce it.
+
+    The tool schema is declared int|str (so Groq's server-side type validation accepts the
+    string instead of 400-ing tool_use_failed); the field_validator coerces back to int.
+    """
+    call = UpdateDisposition(delta="-8")
+    assert call.delta == -8
+    assert isinstance(call.delta, int)
+
+
+def test_string_delta_flows_through_gate(conn):
+    call = UpdateDisposition(delta="-7")
+    result = validate_update_disposition(call, NPC, PLAYER, conn, now=NOW)
+    assert result.accepted is True
+    assert result.new_score == -7
+    assert get_disposition(conn, NPC, PLAYER) == -7
+
+
+def test_schema_sent_to_groq_accepts_string_for_delta():
+    """The JSON schema for delta must be anyOf[integer, string] so Groq won't reject "-8"."""
+    schema = UpdateDisposition.model_json_schema()
+    delta = schema["properties"]["delta"]
+    types = {opt.get("type") for opt in delta.get("anyOf", [])}
+    assert {"integer", "string"} <= types, f"delta schema must accept string, got {delta}"
+
+
+# ---------------------------------------------------------------------------
 # DISPOSITION_CLAMP constant sanity
 # ---------------------------------------------------------------------------
 

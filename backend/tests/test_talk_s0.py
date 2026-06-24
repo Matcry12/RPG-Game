@@ -1,94 +1,73 @@
-"""S0 tests — no real Groq calls, LLM is monkeypatched."""
-from typing import AsyncIterator
-from unittest.mock import MagicMock, patch
+"""S0 tests — endpoint streams a persona reply. No real Groq calls.
+
+Unified agent (ADR-0009): the reply streams out of the single ``agent`` node, patched at
+``app.graph.nodes.get_agent_llm``. With ``tools_enabled`` off the agent has no tools bound,
+so the turn is a pure persona render.
+"""
+
+from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from langchain_core.messages import AIMessageChunk
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.main import app
 
-# ---------------------------------------------------------------------------
-# Fake LLM helpers
-# ---------------------------------------------------------------------------
+from .conftest import make_scripted_chat
 
-FAKE_TOKENS = ["Ah, ", "welcome ", "traveller! ", "What ", "can ", "I ", "do ", "for ", "you?"]
+FAKE_TEXT = "Ah, welcome traveller! What can I do for you?"
 
-
-async def _fake_astream(messages) -> AsyncIterator[AIMessageChunk]:
-    """Yields fake chunks and records the messages it received."""
-    _fake_astream.last_messages = messages  # type: ignore[attr-defined]
-    for token in FAKE_TOKENS:
-        yield AIMessageChunk(content=token)
-
-
-_fake_astream.last_messages = []  # type: ignore[attr-defined]
-
-
-def make_fake_llm():
-    """Return a mock LLM whose .astream() is our async generator."""
-    llm = MagicMock()
-    llm.astream = _fake_astream
-    return llm
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 @pytest.fixture
-def fake_llm_patch():
-    """Patch get_llm in the talk router module."""
-    with patch("app.api.talk.get_llm", return_value=make_fake_llm()) as mock:
-        yield mock
+def no_tools(monkeypatch):
+    """S0 predates tools — render persona only."""
+    monkeypatch.setattr("app.config.settings.tools_enabled", False)
 
 
 @pytest.mark.asyncio
-async def test_talk_streams_tokens(fake_llm_patch):
-    """The endpoint concatenates all fake chunks and streams them back."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        response = await client.post(
-            "/npc/shopkeeper/talk",
-            json={"player_id": "p1", "message": "hello", "location": "shop"},
-        )
+async def test_talk_streams_tokens(no_tools, chroma):
+    """The endpoint streams the agent's reply tokens back, concatenated."""
+    with patch("app.graph.nodes.get_agent_llm", return_value=make_scripted_chat([FAKE_TEXT])):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            response = await client.post(
+                "/npc/shopkeeper/talk",
+                json={"player_id": "p1", "message": "hello", "location": "shop"},
+            )
 
     assert response.status_code == 200
-    assert response.text == "".join(FAKE_TOKENS)
+    # streamed word-by-word with a trailing space per word
+    assert response.text.strip() == FAKE_TEXT
 
 
 @pytest.mark.asyncio
-async def test_talk_sends_persona_as_system_message(fake_llm_patch):
-    """The persona markdown must be the first (System) message passed to the LLM."""
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-        await client.post(
-            "/npc/shopkeeper/talk",
-            json={"player_id": "p1", "message": "hello"},
-        )
+async def test_talk_sends_persona_as_system_message(no_tools, chroma):
+    """The persona markdown must be the first (System) message; the player msg is the Human."""
+    sink: list = []
+    with patch("app.graph.nodes.get_agent_llm", return_value=make_scripted_chat([FAKE_TEXT], sink)):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post(
+                "/npc/shopkeeper/talk",
+                json={"player_id": "p1", "message": "hello"},
+            )
 
-    messages = _fake_astream.last_messages
+    assert sink, "agent LLM was never called"
+    messages = sink[0]
+    # First turn, tools off: [SystemMessage(persona), HumanMessage(player)].
     assert len(messages) == 2
-
-    from langchain_core.messages import HumanMessage, SystemMessage
-
-    system_msg = messages[0]
-    human_msg = messages[1]
-
+    system_msg, human_msg = messages[0], messages[1]
     assert isinstance(system_msg, SystemMessage)
     assert isinstance(human_msg, HumanMessage)
-
-    # The persona file exists, so system content must be non-empty and contain the NPC name
     assert "Mira" in system_msg.content or "shopkeeper" in system_msg.content.lower()
     assert human_msg.content == "hello"
 
 
 @pytest.mark.asyncio
 async def test_talk_missing_persona_returns_404():
-    """A non-existent NPC id must yield a 404, no LLM call needed."""
-    with patch("app.api.talk.get_llm", return_value=make_fake_llm()):
-        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            response = await client.post(
-                "/npc/unknown_npc/talk",
-                json={"player_id": "p1", "message": "hello"},
-            )
+    """A non-existent NPC id yields 404 before any graph/LLM work."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            "/npc/unknown_npc/talk",
+            json={"player_id": "p1", "message": "hello"},
+        )
 
     assert response.status_code == 404

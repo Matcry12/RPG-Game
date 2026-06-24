@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     persona_dir: Path = _BACKEND_DIR / "data" / "personas"
     db_path: Path = _BACKEND_DIR / "data" / "npc.db"
     chroma_path: Path = _BACKEND_DIR / "data" / "chroma"
+    checkpoint_path: Path = _BACKEND_DIR / "data" / "checkpoints.db"
     tools_enabled: bool = True
 
 

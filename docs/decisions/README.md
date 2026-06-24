@@ -26,3 +26,6 @@ Copy `0000-template.md` for each new decision.
 | [0004](0004-rejection-feedback-via-persona-prompt.md) | Rejection feedback conditions the prose generation, not a second tool round-trip | Accepted | 2026-06-22 |
 | [0005](0005-agentic-tool-loop-at-s4.md) | Adopt an agentic tool-calling loop at S4 (replace the linear two-call flow) | Accepted | 2026-06-22 |
 | [0006](0006-episodic-memory-write-and-recall-policy.md) | Episodic memory: write policy, provisional importance, similarity-only recall | Accepted | 2026-06-23 |
+| [0007](0007-s4-loop-shape-and-checkpointer.md) | S4 loop shape: prose-free tool-loop + separate persona render, SqliteSaver checkpointer | Superseded by 0009 | 2026-06-23 |
+| [0008](0008-tolerant-numeric-tool-arg-schemas.md) | Tolerant numeric tool-arg schemas (`int \| str` + coerce) to prevent Groq `tool_use_failed` | Accepted | 2026-06-24 |
+| [0009](0009-unified-agent-turn.md) | Unify the turn into a single persona+tools ReAct agent (supersedes 0007's split) | Accepted | 2026-06-24 |

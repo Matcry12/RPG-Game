@@ -10,7 +10,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd /home/matcry/Developer/RPG-Game/backend && .venv/bin/python -m ruff check app tests --fix 2>&1 && echo \"---PYTEST---\" && .venv/bin/python -m pytest -q 2>&1 | tail -20",
+    "testCommand": "timeout 200 .venv/bin/python -m pytest -q 2>&1 | tail -3; echo \"=== git status ===\"; cd /home/matcry/Developer/RPG-Game && git status --short && echo \"--- branch ---\" && git branch --show-current",
     "lintCommand": null,
     "devCommand": null,
     "scripts": {}
@@ -108,14 +108,14 @@
     },
     {
       "path": "backend/tests/test_talk_state_s1.py",
-      "accessCount": 10,
-      "lastAccessed": 1782199490908,
+      "accessCount": 11,
+      "lastAccessed": 1782223947938,
       "type": "file"
     },
     {
       "path": "backend/app/tools/gates.py",
-      "accessCount": 9,
-      "lastAccessed": 1782195887114,
+      "accessCount": 10,
+      "lastAccessed": 1782223814260,
       "type": "file"
     },
     {
@@ -126,8 +126,8 @@
     },
     {
       "path": "backend/app/config.py",
-      "accessCount": 6,
-      "lastAccessed": 1782196004511,
+      "accessCount": 7,
+      "lastAccessed": 1782223831797,
       "type": "file"
     },
     {
@@ -143,15 +143,27 @@
       "type": "file"
     },
     {
-      "path": "backend/app/tools/schemas.py",
-      "accessCount": 3,
-      "lastAccessed": 1782110151701,
+      "path": "backend/app/serving/llm.py",
+      "accessCount": 4,
+      "lastAccessed": 1782223814187,
       "type": "file"
     },
     {
-      "path": "backend/app/serving/llm.py",
+      "path": "backend/pyproject.toml",
+      "accessCount": 4,
+      "lastAccessed": 1782225883189,
+      "type": "file"
+    },
+    {
+      "path": "docs/npc-agent-service/v2/implementation.md",
+      "accessCount": 4,
+      "lastAccessed": 1782244650436,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/tools/schemas.py",
       "accessCount": 3,
-      "lastAccessed": 1782110208637,
+      "lastAccessed": 1782110151701,
       "type": "file"
     },
     {
@@ -167,12 +179,6 @@
       "type": "file"
     },
     {
-      "path": "docs/npc-agent-service/v2/implementation.md",
-      "accessCount": 2,
-      "lastAccessed": 1782195673865,
-      "type": "file"
-    },
-    {
       "path": "backend/app/main.py",
       "accessCount": 2,
       "lastAccessed": 1782195752988,
@@ -185,15 +191,27 @@
       "type": "file"
     },
     {
-      "path": "backend/pyproject.toml",
-      "accessCount": 2,
-      "lastAccessed": 1782195893719,
-      "type": "file"
-    },
-    {
       "path": "backend/tests/test_talk_recall_s3.py",
       "accessCount": 2,
       "lastAccessed": 1782199860159,
+      "type": "file"
+    },
+    {
+      "path": "docs/decisions/0000-template.md",
+      "accessCount": 2,
+      "lastAccessed": 1782223995590,
+      "type": "file"
+    },
+    {
+      "path": "MEMORY.md",
+      "accessCount": 2,
+      "lastAccessed": 1782244676357,
+      "type": "file"
+    },
+    {
+      "path": "docs/npc-agent-service/v2/graph.md",
+      "accessCount": 2,
+      "lastAccessed": 1782310826513,
       "type": "file"
     },
     {
@@ -209,12 +227,6 @@
       "type": "file"
     },
     {
-      "path": "docs/decisions/0000-template.md",
-      "accessCount": 1,
-      "lastAccessed": 1782119234819,
-      "type": "file"
-    },
-    {
       "path": "docs/decisions/0004-rejection-feedback-via-persona-prompt.md",
       "accessCount": 1,
       "lastAccessed": 1782119260119,
@@ -224,6 +236,18 @@
       "path": "docs/decisions/README.md",
       "accessCount": 1,
       "lastAccessed": 1782119268963,
+      "type": "file"
+    },
+    {
+      "path": "docs/decisions/0005-agentic-tool-loop-at-s4.md",
+      "accessCount": 1,
+      "lastAccessed": 1782223807622,
+      "type": "file"
+    },
+    {
+      "path": "docs/decisions/0007-s4-loop-shape-and-checkpointer.md",
+      "accessCount": 1,
+      "lastAccessed": 1782224029049,
       "type": "file"
     }
   ],
