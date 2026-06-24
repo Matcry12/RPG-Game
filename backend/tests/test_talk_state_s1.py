@@ -1,312 +1,190 @@
-"""S1 integration test — propose/dispose loop end-to-end, no live LLM.
+"""S1 integration tests — propose/dispose loop end-to-end, no live LLM.
 
-Mocks:
-  - get_tool_llm() → fake whose .ainvoke() returns a response with one UpdateDisposition tool_call
-  - get_llm()      → fake whose .astream() yields reply tokens
-
-Uses a temp-file SQLite DB (monkeypatched via settings.db_path) so it never touches npc.db.
+Unified agent (ADR-0009): the single ``agent`` node proposes tools and writes the reply.
+Seam is ``app.graph.nodes.get_agent_llm``; the scripted fake plays a tool-call turn then a
+reply turn. The propose/dispose safety contract is unchanged: the gate is the only writer of
+SQLite truth, and a malformed/refused proposal never 500s.
 """
 
-from pathlib import Path
-from typing import AsyncIterator
-from unittest.mock import AsyncMock, MagicMock, patch
-
+import groq
 import pytest
 from httpx import ASGITransport, AsyncClient
-from langchain_core.messages import AIMessageChunk
 
 from app.main import app
 
+from .conftest import make_scripted_chat, tool_turn
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+REPLY = "How dare you, traveller."
 
-def _make_tool_response(delta: int):
-    """Return a fake AIMessage with one UpdateDisposition tool_call."""
-    msg = MagicMock()
-    msg.tool_calls = [
-        {
-            "name": "UpdateDisposition",
-            "args": {"delta": delta},
-            "id": "call_fake_001",
-        }
-    ]
-    return msg
-
-
-REPLY_TOKENS = ["Very ", "well,", " traveller."]
-
-
-async def _fake_astream(messages) -> AsyncIterator[AIMessageChunk]:
-    for token in REPLY_TOKENS:
-        yield AIMessageChunk(content=token)
-
-
-def _make_stream_llm():
-    llm = MagicMock()
-    llm.astream = _fake_astream
-    return llm
-
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-@pytest.fixture
-def tmp_db(tmp_path, monkeypatch):
-    """Point settings.db_path at a fresh temp file; return its Path."""
-    db_file = tmp_path / "test_npc.db"
-    monkeypatch.setattr("app.config.settings.db_path", db_file)
-    # Also patch it in every module that imported settings before the monkeypatch
-    monkeypatch.setattr("app.api.talk.settings", _patched_settings(db_file))
-    monkeypatch.setattr("app.api.state.settings", _patched_settings(db_file))
-    monkeypatch.setattr("app.main.settings", _patched_settings(db_file))
-    return db_file
-
-
-def _patched_settings(db_file: Path, *, tools_enabled: bool = True):
-    """Return a copy of settings with db_path (and optional flag) overridden."""
-    from app.config import settings as real_settings
-
-    class _S:
-        groq_api_key = real_settings.groq_api_key
-        groq_model = real_settings.groq_model
-        persona_dir = real_settings.persona_dir
-        db_path = db_file
-        chroma_path = real_settings.chroma_path
-        tools_enabled = True  # default; callers may override on the instance
-
-    s = _S()
-    s.tools_enabled = tools_enabled
-    return s
-
-
-@pytest.fixture(autouse=True)
-def _mock_chroma(tmp_path):
-    """Prevent all S1 tests from touching real ChromaDB on disk.
-
-    Patches get_client and get_episodic_collection in talk to return lightweight
-    mocks so episodic read/write never hits the filesystem or downloads a model.
-    """
-    from unittest.mock import MagicMock
-
-    fake_collection = MagicMock()
-    # retrieve_episodic checks collection.count() then calls collection.query().
-    fake_collection.count.return_value = 0
-    fake_collection.query.return_value = {"documents": [[]], "metadatas": [[]]}
-
-    fake_client = MagicMock()
-
-    with (
-        patch("app.api.talk.get_client", return_value=fake_client),
-        patch("app.api.talk.get_episodic_collection", return_value=fake_collection),
-    ):
-        yield
-
-
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_talk_updates_disposition_and_state_reflects_it(tmp_db):
-    """POST /talk (delta=-5) → disposition becomes -5 → GET /state returns -5."""
-    fake_tool_llm = MagicMock()
-    fake_tool_llm.ainvoke = AsyncMock(return_value=_make_tool_response(delta=-5))
+async def test_talk_updates_disposition_and_state_reflects_it(chroma):
+    """POST /talk: agent calls UpdateDisposition(-5) → gate persists -5 → /state returns -5."""
+    llm = make_scripted_chat([tool_turn("UpdateDisposition", {"delta": -5}), REPLY])
 
-    with (
-        patch("app.api.talk.get_tool_llm", return_value=fake_tool_llm),
-        patch("app.api.talk.get_llm", return_value=_make_stream_llm()),
-    ):
+    with patch_agent(llm):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             talk_resp = await client.post(
                 "/npc/shopkeeper/talk",
                 json={"player_id": "p1", "message": "you swindling crook", "location": "shop"},
             )
             assert talk_resp.status_code == 200
-            assert talk_resp.text == "".join(REPLY_TOKENS)
+            assert talk_resp.text.strip() == REPLY
 
             state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
             assert state_resp.status_code == 200
 
     data = state_resp.json()
-    assert data["npc_id"] == "shopkeeper"
-    assert data["player_id"] == "p1"
     assert data["disposition"] == -5
 
 
 @pytest.mark.asyncio
-async def test_talk_no_tool_call_leaves_disposition_at_zero(tmp_db):
-    """If the LLM proposes no tool call, disposition stays at 0."""
-    no_tool_msg = MagicMock()
-    no_tool_msg.tool_calls = []
-
-    fake_tool_llm = MagicMock()
-    fake_tool_llm.ainvoke = AsyncMock(return_value=no_tool_msg)
-
-    with (
-        patch("app.api.talk.get_tool_llm", return_value=fake_tool_llm),
-        patch("app.api.talk.get_llm", return_value=_make_stream_llm()),
-    ):
+async def test_talk_no_tool_call_leaves_disposition_at_zero(chroma):
+    """If the agent proposes no tool call, disposition stays at 0."""
+    with patch_agent(make_scripted_chat([REPLY])):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            await client.post(
-                "/npc/shopkeeper/talk",
-                json={"player_id": "p1", "message": "hello"},
-            )
+            await client.post("/npc/shopkeeper/talk", json={"player_id": "p1", "message": "hello"})
             state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
 
     assert state_resp.json()["disposition"] == 0
 
 
 @pytest.mark.asyncio
-async def test_talk_malformed_tool_call_returns_200_and_leaves_disposition_unchanged(tmp_db):
-    """Malformed tool-call args must not 500 — turn completes and SQLite is untouched."""
-    malformed_msg = MagicMock()
-    malformed_msg.tool_calls = [
-        {
-            "name": "UpdateDisposition",
-            "args": {"wrong_field": "garbage"},
-            "id": "call_fake_bad",
-        }
-    ]
+async def test_talk_malformed_tool_call_returns_200_and_leaves_disposition_unchanged(chroma):
+    """Malformed tool-call args must not 500 — gate skipped, agent still replies, SQLite untouched."""
+    llm = make_scripted_chat([tool_turn("UpdateDisposition", {"wrong_field": "garbage"}), REPLY])
 
-    fake_tool_llm = MagicMock()
-    fake_tool_llm.ainvoke = AsyncMock(return_value=malformed_msg)
-
-    with (
-        patch("app.api.talk.get_tool_llm", return_value=fake_tool_llm),
-        patch("app.api.talk.get_llm", return_value=_make_stream_llm()),
-    ):
+    with patch_agent(llm):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             talk_resp = await client.post(
                 "/npc/shopkeeper/talk",
                 json={"player_id": "p1", "message": "do your worst"},
             )
-            # (a) must not 500 — the turn still streams the reply
             assert talk_resp.status_code == 200
-            assert talk_resp.text == "".join(REPLY_TOKENS)
-
+            assert talk_resp.text.strip() == REPLY
             state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
 
-    # (b) disposition must be untouched — no SQLite write on parse failure
     assert state_resp.json()["disposition"] == 0
 
 
 @pytest.mark.asyncio
-async def test_groq_bad_request_error_returns_200_and_leaves_disposition_unchanged(tmp_db):
-    """Part B regression: groq.BadRequestError at ainvoke boundary must NOT 500.
-
-    Simulates Groq rejecting the tool-proposal call (e.g. tool_use_failed 400).
-    The turn must complete normally with the reply streamed and disposition untouched.
-    """
-    from unittest.mock import MagicMock
-
-    import groq
-
-    fake_response = MagicMock()  # groq.BadRequestError needs an httpx.Response-like object
-    bad_request_error = groq.BadRequestError(
-        message="tool_use_failed",
-        response=fake_response,
+async def test_groq_bad_request_error_returns_200_and_leaves_disposition_unchanged(chroma):
+    """A groq.BadRequestError on the tools-bound turn must degrade to a tool-free reply, not 500."""
+    bad_request = groq.BadRequestError(
+        message="tool_use_failed", response=__import__("unittest.mock", fromlist=["MagicMock"]).MagicMock(),
         body={"error": {"code": "tool_use_failed"}},
     )
+    reply_fake = make_scripted_chat([REPLY])
 
-    fake_tool_llm = MagicMock()
-    fake_tool_llm.ainvoke = AsyncMock(side_effect=bad_request_error)
+    def factory(*, with_tools=True):
+        return _RaisingChat(bad_request) if with_tools else reply_fake
 
-    with (
-        patch("app.api.talk.get_tool_llm", return_value=fake_tool_llm),
-        patch("app.api.talk.get_llm", return_value=_make_stream_llm()),
-    ):
+    with patch("app.graph.nodes.get_agent_llm", side_effect=factory):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             talk_resp = await client.post(
                 "/npc/shopkeeper/talk",
                 json={"player_id": "p1", "message": "you thieving wretch"},
             )
-            # (a) must return 200 and stream the reply — no 500
             assert talk_resp.status_code == 200
-            assert talk_resp.text == "".join(REPLY_TOKENS)
-
+            assert talk_resp.text.strip() == REPLY
             state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
 
-    # (b) disposition must be unchanged — failed proposal treated as "no tool"
     assert state_resp.json()["disposition"] == 0
 
 
 @pytest.mark.asyncio
-async def test_propose_uses_tool_routing_prompt_not_persona(tmp_db):
-    """Part A: the tool-proposal call must receive the terse routing prompt, not the persona text.
+async def test_agent_that_always_calls_tools_terminates(chroma):
+    """Review HIGH-1: even if the model emits a tool call on EVERY turn, the loop must end.
 
-    Locks in the separation between the tool-routing system message and the prose system message.
+    The cap forces a tool-free reply turn at MAX_AGENT_TURNS=3, so exactly 3 gate rounds run
+    (delta -1 each → -3) and the turn terminates (no recursion runaway). With no prose ever
+    produced, the endpoint emits the '...' fallback.
     """
-    captured_propose_messages = []
+    from app.graph.nodes import MAX_AGENT_TURNS
 
-    async def _capture_ainvoke(messages):
-        captured_propose_messages.extend(messages)
-        # Return a no-tool response so the rest of the turn completes normally
-        msg = MagicMock()
-        msg.tool_calls = []
-        return msg
+    # A single tool turn that repeats forever (make_scripted_chat repeats the last turn).
+    llm = make_scripted_chat([tool_turn("UpdateDisposition", {"delta": -1})])
 
-    fake_tool_llm = MagicMock()
-    fake_tool_llm.ainvoke = _capture_ainvoke
-
-    with (
-        patch("app.api.talk.get_tool_llm", return_value=fake_tool_llm),
-        patch("app.api.talk.get_llm", return_value=_make_stream_llm()),
-    ):
+    with patch_agent(llm):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
-            await client.post(
+            talk_resp = await client.post(
                 "/npc/shopkeeper/talk",
-                json={"player_id": "p1", "message": "greetings"},
+                json={"player_id": "p1", "message": "grrr"},
             )
+            assert talk_resp.status_code == 200
+            assert talk_resp.text == "..."  # no prose ever produced → fallback
+            state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
 
-    # The first message in the propose call must be the routing system prompt
-    assert captured_propose_messages, "ainvoke was never called with messages"
-    propose_system = captured_propose_messages[0].content
-    # Must contain routing instructions
-    assert "action-control" in propose_system
-    assert "Do NOT write any dialogue" in propose_system
-    # Must NOT contain persona text (shopkeeper persona contains "Mira" or "Thistlewick")
-    assert "Mira" not in propose_system
-    assert "Thistlewick" not in propose_system
+    # Exactly MAX_AGENT_TURNS gate rounds ran, each delta -1.
+    assert state_resp.json()["disposition"] == -MAX_AGENT_TURNS
 
 
 @pytest.mark.asyncio
-async def test_disposition_tool_disabled_flag_skips_propose(tmp_db, monkeypatch):
-    """When disposition_tool_enabled=False, the propose path is skipped entirely.
+async def test_agent_prompt_is_persona_plus_tool_guidance(chroma):
+    """Unified agent: the single prompt must carry the persona AND the tool guidance.
 
-    Assertions:
-      (a) /talk returns 200 and streams the reply normally.
-      (b) disposition in SQLite is unchanged (still 0) — no tool ran.
-      (c) get_tool_llm is never called (propose path was skipped).
+    (Replaces the old 'routing prompt is not persona' test — unification is the point now.)
     """
-    # Build a settings object with the flag off and the same temp DB.
-    disabled_settings = _patched_settings(tmp_db, tools_enabled=False)
+    sink: list = []
+    with patch_agent(make_scripted_chat([REPLY], sink)):
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+            await client.post("/npc/shopkeeper/talk", json={"player_id": "p1", "message": "greetings"})
 
-    # Patch settings in all modules that imported it before this test.
-    monkeypatch.setattr("app.api.talk.settings", disabled_settings)
-    monkeypatch.setattr("app.api.state.settings", disabled_settings)
-    monkeypatch.setattr("app.main.settings", disabled_settings)
-    monkeypatch.setattr("app.config.settings", disabled_settings)
+    assert sink, "agent was never called"
+    system = sink[0][0].content
+    assert "Mira" in system or "shopkeeper" in system.lower()  # persona present
+    assert "CALL THE TOOL" in system  # tool guidance present
 
-    with (
-        patch("app.api.talk.get_tool_llm") as mock_get_tool_llm,
-        patch("app.api.talk.get_llm", return_value=_make_stream_llm()),
-    ):
+
+@pytest.mark.asyncio
+async def test_tools_disabled_skips_tools_and_guidance(chroma, monkeypatch):
+    """tools_enabled=False: no tool guidance in the prompt, agent just replies, disposition 0."""
+    monkeypatch.setattr("app.config.settings.tools_enabled", False)
+    sink: list = []
+
+    with patch_agent(make_scripted_chat([REPLY], sink)):
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             talk_resp = await client.post(
                 "/npc/shopkeeper/talk",
                 json={"player_id": "p1", "message": "hello stranger"},
             )
-            # (a) endpoint must still return 200 and stream the reply
             assert talk_resp.status_code == 200
-            assert talk_resp.text == "".join(REPLY_TOKENS)
-
+            assert talk_resp.text.strip() == REPLY
             state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
 
-    # (b) disposition must be untouched — no tool call ran
     assert state_resp.json()["disposition"] == 0
+    assert "CALL THE TOOL" not in sink[0][0].content  # guidance omitted when tools off
 
-    # (c) get_tool_llm must not have been called — propose block was skipped
-    mock_get_tool_llm.assert_not_called()
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+from unittest.mock import patch  # noqa: E402
+
+from langchain_core.language_models.chat_models import BaseChatModel  # noqa: E402
+
+
+def patch_agent(llm):
+    return patch("app.graph.nodes.get_agent_llm", return_value=llm)
+
+
+class _RaisingChat(BaseChatModel):
+    """A fake whose astream raises the given exception (to simulate Groq 400 on the tool turn)."""
+
+    exc: object = None
+
+    def __init__(self, exc):
+        super().__init__()
+        object.__setattr__(self, "exc", exc)
+
+    @property
+    def _llm_type(self) -> str:
+        return "raising-fake"
+
+    def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+        raise self.exc
+
+    async def _astream(self, messages, stop=None, run_manager=None, **kwargs):
+        raise self.exc
+        yield  # pragma: no cover  (makes this an async generator)

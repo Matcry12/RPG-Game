@@ -30,7 +30,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "cd backend && .venv/bin/python -m pytest -q 2>&1 | tail -4\necho \"=== recall-injection test present? ===\"\ngrep -rn \"Things you remember\\|recalled_memory_is_injected\\|lost_locket quest\" tests/ | head\necho \"=== lru_cache on get_client? ===\"\ngrep -n \"lru_cache\\|functools\" app/memory/vector_store.py\necho \"=== chunk coercion + empty-reply guard in talk.py? ===\"\ngrep -n \"isinstance(chunk.content\\|full_reply.strip()\" app/api/talk.py\necho \"=== test embedder name()? ===\"\ngrep -n \"def name\" tests/test_vector_store.py",
+    "testCommand": "timeout 200 .venv/bin/python -m pytest -q 2>&1 | tail -8; echo \"=== RUFF ===\"; .venv/bin/ruff check app/ tests/ 2>&1 | tail -5",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
@@ -115,9 +115,87 @@
   },
   "hotPaths": [
     {
+      "path": "app/graph/nodes.py",
+      "accessCount": 14,
+      "lastAccessed": 1782309054193,
+      "type": "file"
+    },
+    {
       "path": "app/api/talk.py",
+      "accessCount": 12,
+      "lastAccessed": 1782309094651,
+      "type": "file"
+    },
+    {
+      "path": "app/serving/llm.py",
+      "accessCount": 7,
+      "lastAccessed": 1782291126127,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_checkpoint_s4.py",
+      "accessCount": 7,
+      "lastAccessed": 1782309104619,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_state_s1.py",
+      "accessCount": 6,
+      "lastAccessed": 1782309129183,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_s0.py",
+      "accessCount": 5,
+      "lastAccessed": 1782291156810,
+      "type": "file"
+    },
+    {
+      "path": "app/graph/state.py",
+      "accessCount": 5,
+      "lastAccessed": 1782309063384,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_recall_s3.py",
+      "accessCount": 4,
+      "lastAccessed": 1782243834601,
+      "type": "file"
+    },
+    {
+      "path": "tests/conftest.py",
+      "accessCount": 4,
+      "lastAccessed": 1782291131615,
+      "type": "file"
+    },
+    {
+      "path": "app/memory/sqlite_store.py",
+      "accessCount": 3,
+      "lastAccessed": 1782237579956,
+      "type": "file"
+    },
+    {
+      "path": "app/tools/schemas.py",
+      "accessCount": 3,
+      "lastAccessed": 1782291127006,
+      "type": "file"
+    },
+    {
+      "path": "app/tools/gates.py",
+      "accessCount": 3,
+      "lastAccessed": 1782291132155,
+      "type": "file"
+    },
+    {
+      "path": "app/config.py",
       "accessCount": 2,
-      "lastAccessed": 1782200203585,
+      "lastAccessed": 1782229583779,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_gate_disposition.py",
+      "accessCount": 2,
+      "lastAccessed": 1782242806118,
       "type": "file"
     },
     {
@@ -133,15 +211,15 @@
       "type": "file"
     },
     {
-      "path": "app/tools/gates.py",
+      "path": "app/graph/__init__.py",
       "accessCount": 1,
-      "lastAccessed": 1782196744414,
+      "lastAccessed": 1782228035197,
       "type": "file"
     },
     {
-      "path": "tests/test_talk_state_s1.py",
+      "path": "app/api/state.py",
       "accessCount": 1,
-      "lastAccessed": 1782196990562,
+      "lastAccessed": 1782229621170,
       "type": "file"
     }
   ],
