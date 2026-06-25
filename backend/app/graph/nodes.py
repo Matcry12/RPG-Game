@@ -34,6 +34,7 @@ from app.memory.vector_store import (
     get_client,
     get_episodic_collection,
     retrieve_episodic,
+    retrieve_lore,
     write_episodic,
 )
 from app.serving.llm import get_agent_llm
@@ -51,7 +52,7 @@ MAX_AGENT_TURNS = 3
 
 # Most recent conversation messages injected into the persona prompt. The full thread stays
 # checkpointed; this only bounds prompt size (review HIGH-2).
-HISTORY_WINDOW_MESSAGES = 20
+HISTORY_WINDOW_MESSAGES = 10
 
 # Map tool name strings to their Pydantic schema classes (for the gate).
 _TOOL_SCHEMA_MAP: dict[str, type] = {
@@ -60,22 +61,9 @@ _TOOL_SCHEMA_MAP: dict[str, type] = {
     "StartQuest": StartQuest,
 }
 
-_TOOL_GUIDANCE = (
-    "\n\nYou can take real actions through tools (adjust how you feel about the player, start a "
-    "quest, grant a reward). When the player's words or actions warrant one, CALL THE TOOL and "
-    "write no dialogue in that turn. After you see the tool result, reply fully in character — "
-    "and if an action was refused, explain in your own voice why you can't do it, without "
-    "breaking character or mentioning rules/systems. Never write a tool call inside your dialogue."
-)
-
-
 # ---------------------------------------------------------------------------
 # Episodic helpers (provisional; real salience scoring lands in S6 — ADR-0006).
 # ---------------------------------------------------------------------------
-
-def _importance(message: str) -> int:
-    """Provisional heuristic; real salience scoring lands in S6."""
-    return 5 if len(message) > 80 else 3
 
 
 def _tool_event_sentence(gate: dict) -> str:
@@ -95,10 +83,33 @@ def _tool_event_sentence(gate: dict) -> str:
 
 def _persona_system(state: TurnState) -> SystemMessage:
     """Build the single persona+tools system prompt for the agent."""
-    guidance = _TOOL_GUIDANCE if settings.tools_enabled else ""
+    guidance = (
+        (
+            "\n\nYou can take real actions through tools (adjust how you feel about the player, start a "
+            "quest, grant a reward). When the player's words or actions warrant one, CALL THE TOOL and "
+            "write no dialogue in that turn. After you see the tool result, reply fully in character — "
+            "and if an action was refused, explain in your own voice why you can't do it, without "
+            "breaking character or mentioning rules/systems. Never write a tool call inside your dialogue."
+        )
+        if settings.tools_enabled
+        else ""
+    )
+    lore_part = ""
+    if settings.grounding_gate:
+        if state.get("grounded"):
+            lore_part = (
+                f"\n\n{state.get('lore_block', '')}\n\nSpeak only to what the lore above confirms. "
+                "Do not invent names, places, events, or history beyond what is stated."
+            )
+        else:
+            lore_part = (
+                "\n\nYou have no lore records on this topic. If the traveller asks about "
+                "world facts you do not know, say so in your own voice — never invent "
+                "names, places, or history."
+            )
     return SystemMessage(
         content=(
-            f"{state['persona_text']}{state.get('memory_block', '')}{guidance}\n\n"
+            f"{state['persona_text']}{state.get('memory_block', '')}{lore_part}{guidance}\n\n"
             f"(current disposition toward this player: {state['current_score']})"
         )
     )
@@ -107,6 +118,7 @@ def _persona_system(state: TurnState) -> SystemMessage:
 # ---------------------------------------------------------------------------
 # Nodes
 # ---------------------------------------------------------------------------
+
 
 async def retrieve_context(state: TurnState) -> dict:
     """Entry node: reset per-turn scratch, read disposition (SQLite) + recall events (Chroma).
@@ -127,7 +139,10 @@ async def retrieve_context(state: TurnState) -> dict:
             conn.close()
     except sqlite3.Error as exc:
         logger.warning(
-            "Disposition read failed (degrading to 0) — (%s,%s): %s", npc_id, player_id, exc
+            "Disposition read failed (degrading to 0) — (%s,%s): %s",
+            npc_id,
+            player_id,
+            exc,
         )
 
     recalled: list[dict] = []
@@ -147,7 +162,10 @@ async def retrieve_context(state: TurnState) -> dict:
 
     if recalled:
         logger.info(
-            "S3 recall for (%s,%s): %r", npc_id, player_id, [r["text"] for r in recalled]
+            "S3 recall for (%s,%s): %r",
+            npc_id,
+            player_id,
+            [r["text"] for r in recalled],
         )
 
     memory_block = ""
@@ -157,10 +175,52 @@ async def retrieve_context(state: TurnState) -> dict:
             f"\n\nThings you remember from past encounters with this player:\n{lines}"
         )
 
+    lore_block = ""
+    grounded = False
+    if settings.grounding_gate:
+        lore_history: list[dict] = []
+        for msg in list(state.get("history", []))[-6:]:
+            if isinstance(msg, HumanMessage):
+                lore_history.append({"role": "user", "content": msg.content})
+            elif isinstance(msg, AIMessage):
+                lore_history.append({"role": "assistant", "content": msg.content})
+
+        try:
+            lore_ctx = await retrieve_lore(
+                npc_id,
+                message,
+                history=lore_history,
+                lightrag_path=settings.lightrag_path,
+                groq_api_key=settings.groq_api_key,
+                groq_model=settings.groq_model,
+            )
+            grounded = len(lore_ctx) >= settings.lore_context_min_chars
+            if grounded:
+                lore_block = f"\n\nRelevant lore for this conversation:\n{lore_ctx}"
+                logger.info(
+                    "S5 lore retrieved for (%s,%s): %d chars",
+                    npc_id,
+                    player_id,
+                    len(lore_ctx),
+                )
+            else:
+                logger.info(
+                    "S5 lore: no grounded context for (%s,%s)", npc_id, player_id
+                )
+        except Exception as exc:
+            logger.warning(
+                "Lore retrieval failed (degrading to ungrounded) — (%s,%s): %s",
+                npc_id,
+                player_id,
+                exc,
+            )
+
     return {
         "current_score": current_score,
         "recalled": recalled,
         "memory_block": memory_block,
+        "lore_block": lore_block,
+        "grounded": grounded,
         # Reset per-turn scratch (overwrite, no reducer).
         "loop_messages": [],
         "agent_turns": 0,
@@ -189,7 +249,12 @@ async def agent(state: TurnState) -> dict:
 
     history = list(state.get("history", []))[-HISTORY_WINDOW_MESSAGES:]
     loop = list(state.get("loop_messages", []))
-    messages = [_persona_system(state), *history, HumanMessage(content=state["message"]), *loop]
+    messages = [
+        _persona_system(state),
+        *history,
+        HumanMessage(content=state["message"]),
+        *loop,
+    ]
 
     llm = get_agent_llm(with_tools=not force_reply).with_config(tags=["persona"])
     try:
@@ -211,7 +276,10 @@ async def agent(state: TurnState) -> dict:
     out: dict = {"agent_turns": turns + 1}
     if tool_calls and not force_reply:
         # Tool-decision turn → loop through the gate.
-        out["loop_messages"] = [*loop, AIMessage(content=content, tool_calls=tool_calls)]
+        out["loop_messages"] = [
+            *loop,
+            AIMessage(content=content, tool_calls=tool_calls),
+        ]
     else:
         # Reply turn. On the forced (cap) turn we IGNORE any tool calls the now-unbound model
         # might still echo, so the appended AIMessage carries no tool_calls and the graph ALWAYS
@@ -223,7 +291,10 @@ async def agent(state: TurnState) -> dict:
             )
         out["loop_messages"] = [*loop, AIMessage(content=content)]
         out["reply"] = content
-        out["history"] = [HumanMessage(content=state["message"]), AIMessage(content=content)]
+        out["history"] = [
+            HumanMessage(content=state["message"]),
+            AIMessage(content=content),
+        ]
     return out
 
 
@@ -253,7 +324,10 @@ async def tools(state: TurnState) -> dict:
         conn = connect(settings.db_path)
         init_db(conn)
     except sqlite3.Error as exc:
-        logger.warning("DB unavailable in tools node — rejecting all proposed calls. Error: %s", exc)
+        logger.warning(
+            "DB unavailable in tools node — rejecting all proposed calls. Error: %s",
+            exc,
+        )
         rejects = [
             ToolMessage(
                 content="rejected: backend unavailable",
@@ -277,8 +351,16 @@ async def tools(state: TurnState) -> dict:
                 result = gates.validate(call, npc_id, player_id, conn, now=now)
                 if result.accepted:
                     gate_results.append(result.model_dump())
-                content = f"{'accepted' if result.accepted else 'rejected'}: {result.reason}"
-            except (ValidationError, KeyError, TypeError, ValueError, sqlite3.Error) as exc:
+                content = (
+                    f"{'accepted' if result.accepted else 'rejected'}: {result.reason}"
+                )
+            except (
+                ValidationError,
+                KeyError,
+                TypeError,
+                ValueError,
+                sqlite3.Error,
+            ) as exc:
                 logger.warning(
                     "Malformed tool-call args from model — skipping gate (no SQLite write). "
                     "Args: %r  Error: %s",
@@ -312,7 +394,7 @@ async def write_memory(state: TurnState) -> dict:
                 player_id=player_id,
                 text=turn_text,
                 timestamp=ts,
-                importance=_importance(message),
+                importance=5 if len(message) > 80 else 3,
             )
 
         for gr in state.get("gate_results", []):

@@ -126,3 +126,9 @@
 {"t":0,"agent":"a449a46","agent_type":"unknown","event":"agent_stop","success":true}
 {"t":0,"agent":"a6d27b4","agent_type":"unknown","event":"agent_stop","success":true}
 {"t":0,"agent":"aa1d5d6","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a64c453","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"system","event":"skill_invoked","skill_name":"ponytail:ponytail-help"}
+{"t":0,"agent":"aa2ac67","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"af0a11d","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a7643de","agent_type":"unknown","event":"agent_stop","success":true}
+{"t":0,"agent":"a313919","agent_type":"unknown","event":"agent_stop","success":true}

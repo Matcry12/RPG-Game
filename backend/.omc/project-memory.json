@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1782148630689,
+  "lastScanned": 1782322906161,
   "projectRoot": "/home/matcry/Developer/RPG-Game/backend",
   "techStack": {
     "languages": [
@@ -30,7 +30,7 @@
   },
   "build": {
     "buildCommand": null,
-    "testCommand": "timeout 200 .venv/bin/python -m pytest -q 2>&1 | tail -8; echo \"=== RUFF ===\"; .venv/bin/ruff check app/ tests/ 2>&1 | tail -5",
+    "testCommand": "uv run pytest tests/ -q 2>&1 | tail -10",
     "lintCommand": "ruff check",
     "devCommand": null,
     "scripts": {}
@@ -59,7 +59,7 @@
       "path": "app",
       "purpose": "Application code",
       "fileCount": 3,
-      "lastAccessed": 1782148630686,
+      "lastAccessed": 1782322906157,
       "keyFiles": [
         "__init__.py",
         "config.py",
@@ -69,17 +69,29 @@
     "data": {
       "path": "data",
       "purpose": "Data files",
-      "fileCount": 1,
-      "lastAccessed": 1782148630686,
+      "fileCount": 4,
+      "lastAccessed": 1782322906157,
       "keyFiles": [
+        "checkpoints.db",
+        "checkpoints.db-shm",
+        "checkpoints.db-wal",
         "npc.db"
+      ]
+    },
+    "eval": {
+      "path": "eval",
+      "purpose": null,
+      "fileCount": 1,
+      "lastAccessed": 1782322906159,
+      "keyFiles": [
+        "s5_manual_test.md"
       ]
     },
     "npc_agent_service.egg-info": {
       "path": "npc_agent_service.egg-info",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1782148630687,
+      "lastAccessed": 1782322906159,
       "keyFiles": [
         "PKG-INFO",
         "SOURCES.txt",
@@ -91,21 +103,21 @@
     "tests": {
       "path": "tests",
       "purpose": "Test files",
-      "fileCount": 5,
-      "lastAccessed": 1782148630688,
+      "fileCount": 11,
+      "lastAccessed": 1782322906159,
       "keyFiles": [
         "__init__.py",
+        "conftest.py",
         "test_gate_disposition.py",
         "test_gate_reward.py",
-        "test_talk_s0.py",
-        "test_talk_state_s1.py"
+        "test_talk_checkpoint_s4.py"
       ]
     },
     "app/api": {
       "path": "app/api",
       "purpose": "API routes",
-      "fileCount": 3,
-      "lastAccessed": 1782148630688,
+      "fileCount": 4,
+      "lastAccessed": 1782322906160,
       "keyFiles": [
         "__init__.py",
         "state.py",
@@ -116,20 +128,38 @@
   "hotPaths": [
     {
       "path": "app/graph/nodes.py",
-      "accessCount": 14,
-      "lastAccessed": 1782309054193,
+      "accessCount": 23,
+      "lastAccessed": 1782323206763,
+      "type": "file"
+    },
+    {
+      "path": "app/memory/vector_store.py",
+      "accessCount": 21,
+      "lastAccessed": 1782386171886,
       "type": "file"
     },
     {
       "path": "app/api/talk.py",
-      "accessCount": 12,
-      "lastAccessed": 1782309094651,
+      "accessCount": 16,
+      "lastAccessed": 1782386134850,
+      "type": "file"
+    },
+    {
+      "path": "app/api/world.py",
+      "accessCount": 10,
+      "lastAccessed": 1782386143501,
+      "type": "file"
+    },
+    {
+      "path": "app/graph/state.py",
+      "accessCount": 9,
+      "lastAccessed": 1782385993379,
       "type": "file"
     },
     {
       "path": "app/serving/llm.py",
-      "accessCount": 7,
-      "lastAccessed": 1782291126127,
+      "accessCount": 9,
+      "lastAccessed": 1782386118926,
       "type": "file"
     },
     {
@@ -139,9 +169,39 @@
       "type": "file"
     },
     {
+      "path": "app/config.py",
+      "accessCount": 7,
+      "lastAccessed": 1782322673686,
+      "type": "file"
+    },
+    {
       "path": "tests/test_talk_state_s1.py",
       "accessCount": 6,
       "lastAccessed": 1782309129183,
+      "type": "file"
+    },
+    {
+      "path": "tests/conftest.py",
+      "accessCount": 6,
+      "lastAccessed": 1782321137024,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_vector_store_lore.py",
+      "accessCount": 6,
+      "lastAccessed": 1782323220617,
+      "type": "file"
+    },
+    {
+      "path": "app/tools/gates.py",
+      "accessCount": 6,
+      "lastAccessed": 1782386103692,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_gate_disposition.py",
+      "accessCount": 6,
+      "lastAccessed": 1782386199444,
       "type": "file"
     },
     {
@@ -151,57 +211,57 @@
       "type": "file"
     },
     {
-      "path": "app/graph/state.py",
-      "accessCount": 5,
-      "lastAccessed": 1782309063384,
-      "type": "file"
-    },
-    {
       "path": "tests/test_talk_recall_s3.py",
-      "accessCount": 4,
-      "lastAccessed": 1782243834601,
-      "type": "file"
-    },
-    {
-      "path": "tests/conftest.py",
-      "accessCount": 4,
-      "lastAccessed": 1782291131615,
+      "accessCount": 5,
+      "lastAccessed": 1782321132636,
       "type": "file"
     },
     {
       "path": "app/memory/sqlite_store.py",
-      "accessCount": 3,
-      "lastAccessed": 1782237579956,
+      "accessCount": 4,
+      "lastAccessed": 1782385991057,
       "type": "file"
     },
     {
       "path": "app/tools/schemas.py",
+      "accessCount": 4,
+      "lastAccessed": 1782385992593,
+      "type": "file"
+    },
+    {
+      "path": "app/main.py",
+      "accessCount": 4,
+      "lastAccessed": 1782385993812,
+      "type": "file"
+    },
+    {
+      "path": "eval/s5_manual_test.md",
       "accessCount": 3,
-      "lastAccessed": 1782291127006,
+      "lastAccessed": 1782324768967,
       "type": "file"
     },
     {
-      "path": "app/tools/gates.py",
+      "path": "app/serving/lore_llm.py",
       "accessCount": 3,
-      "lastAccessed": 1782291132155,
+      "lastAccessed": 1782385992231,
       "type": "file"
     },
     {
-      "path": "app/config.py",
+      "path": "data/personas/shopkeeper.md",
       "accessCount": 2,
-      "lastAccessed": 1782229583779,
+      "lastAccessed": 1782321228979,
       "type": "file"
     },
     {
-      "path": "tests/test_gate_disposition.py",
+      "path": "tests/test_talk_lore_s5.py",
       "accessCount": 2,
-      "lastAccessed": 1782242806118,
+      "lastAccessed": 1782321425385,
       "type": "file"
     },
     {
-      "path": "app/memory/vector_store.py",
-      "accessCount": 1,
-      "lastAccessed": 1782196719219,
+      "path": "app/api/state.py",
+      "accessCount": 2,
+      "lastAccessed": 1782385990288,
       "type": "file"
     },
     {
@@ -217,9 +277,9 @@
       "type": "file"
     },
     {
-      "path": "app/api/state.py",
+      "path": "data/seed_lore_claude.py",
       "accessCount": 1,
-      "lastAccessed": 1782229621170,
+      "lastAccessed": 1782323631866,
       "type": "file"
     }
   ],

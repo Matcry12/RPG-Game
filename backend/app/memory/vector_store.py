@@ -8,17 +8,23 @@ All public functions accept an explicit Chroma collection so they are
 unit-testable without a real PersistentClient (mirrors sqlite_store.py style).
 """
 
+import asyncio
 import functools
 import uuid
 from pathlib import Path
 
 import chromadb
+import numpy as np
 from chromadb import ClientAPI, Collection
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
+from lightrag import LightRAG, QueryParam
+from lightrag.utils import EmbeddingFunc
 
 
 # ---------------------------------------------------------------------------
 # Client + collection factory
 # ---------------------------------------------------------------------------
+
 
 @functools.lru_cache(maxsize=None)
 def get_client(path: Path | str) -> ClientAPI:
@@ -30,7 +36,9 @@ def get_client(path: Path | str) -> ClientAPI:
     return chromadb.PersistentClient(path=str(path))
 
 
-def get_episodic_collection(client: ClientAPI, *, embedding_function=None) -> Collection:
+def get_episodic_collection(
+    client: ClientAPI, *, embedding_function=None
+) -> Collection:
     """Return (or create) the 'episodic' collection.
 
     `embedding_function=None` → Chroma's default MiniLM embedder.
@@ -45,6 +53,7 @@ def get_episodic_collection(client: ClientAPI, *, embedding_function=None) -> Co
 # ---------------------------------------------------------------------------
 # Write
 # ---------------------------------------------------------------------------
+
 
 def write_episodic(
     collection: Collection,
@@ -73,6 +82,7 @@ def write_episodic(
 # ---------------------------------------------------------------------------
 # Retrieve
 # ---------------------------------------------------------------------------
+
 
 def retrieve_episodic(
     collection: Collection,
@@ -103,7 +113,9 @@ def retrieve_episodic(
         results = collection.query(
             query_texts=[query],
             n_results=k,
-            where={"$and": [{"npc_id": {"$eq": npc_id}}, {"player_id": {"$eq": player_id}}]},
+            where={
+                "$and": [{"npc_id": {"$eq": npc_id}}, {"player_id": {"$eq": player_id}}]
+            },
         )
     except Exception:
         # Chroma raises if n_results > number of matching docs in some versions;
@@ -124,3 +136,96 @@ def retrieve_episodic(
         }
         for doc, meta in zip(docs, metas)
     ]
+
+
+# ---------------------------------------------------------------------------
+# LightRAG lore store (per-NPC knowledge graph, S5)
+# ---------------------------------------------------------------------------
+
+_chroma_ef = DefaultEmbeddingFunction()
+
+
+async def _embed(texts: list[str]) -> np.ndarray:
+    return np.array(_chroma_ef(texts))
+
+
+_ef = EmbeddingFunc(embedding_dim=384, max_token_size=8192, func=_embed)
+
+_lore_rags: dict[str, LightRAG] = {}
+_lore_locks: dict[str, asyncio.Lock] = {}
+
+
+async def get_lore_rag(
+    npc_id: str, lightrag_path, groq_api_key: str, groq_model: str
+) -> LightRAG:
+    """Return (or create) the LightRAG instance for this NPC."""
+    if npc_id not in _lore_rags:
+        if npc_id not in _lore_locks:
+            _lore_locks[npc_id] = asyncio.Lock()
+        async with _lore_locks[npc_id]:
+            if npc_id not in _lore_rags:
+
+                async def _llm(
+                    prompt,
+                    system_prompt=None,
+                    history_messages=[],
+                    keyword_extraction=False,
+                    **kwargs,
+                ):
+                    return await openai_complete_if_cache(
+                        groq_model,
+                        prompt,
+                        system_prompt=system_prompt,
+                        history_messages=history_messages,
+                        api_key=groq_api_key,
+                        base_url="https://api.groq.com/openai/v1",
+                        **kwargs,
+                    )
+
+                working_dir = str(Path(lightrag_path) / npc_id)
+                Path(working_dir).mkdir(parents=True, exist_ok=True)
+                rag = LightRAG(
+                    working_dir=working_dir,
+                    embedding_func=_ef,
+                    llm_model_func=_llm,
+                )
+                await rag.initialize_storages()
+                _lore_rags[npc_id] = rag
+    return _lore_rags[npc_id]
+
+
+async def seed_lore(
+    npc_id: str, entries: list[dict], lightrag_path, groq_api_key: str, groq_model: str
+) -> int:
+    """Insert lore entries into the NPC's graph. Returns count inserted. Idempotent."""
+    rag = await get_lore_rag(npc_id, lightrag_path, groq_api_key, groq_model)
+    texts = [e["text"] for e in entries]
+    if texts:
+        await rag.ainsert(texts)
+    return len(texts)
+
+
+async def retrieve_lore(
+    npc_id: str,
+    query: str,
+    *,
+    history: list[dict],
+    lightrag_path,
+    groq_api_key: str,
+    groq_model: str,
+) -> str:
+    """Retrieve lore context for this NPC. Returns '' on miss/error (best-effort)."""
+    try:
+        rag = await get_lore_rag(npc_id, lightrag_path, groq_api_key, groq_model)
+        result = await rag.aquery(
+            query,
+            param=QueryParam(
+                mode="mix",
+                only_need_context=True,
+                conversation_history=history,
+                top_k=10,
+            ),
+        )
+        return result if isinstance(result, str) else ""
+    except Exception:
+        return ""

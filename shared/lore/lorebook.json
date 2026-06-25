@@ -1,0 +1,77 @@
+[
+  {
+    "id": "ashenveil-overview",
+    "category": "general",
+    "text": "Ashenveil is a mid-sized trading city on the eastern road, known for its amber mines and curio trade. It sits at the crossroads of three merchant routes and has a population of roughly eight thousand. The city is divided into the Market District, the Craftsmen's Quarter, the Docks on the river Seln, and the Warden's Hill where the city garrison is based."
+  },
+  {
+    "id": "market-district",
+    "category": "general",
+    "text": "The Market District is the commercial heart of Ashenveil, running from the East Gate to the old mill. Tanner's Row is its main thoroughfare, lined with specialist traders. A Merchants' Circle seal is required to operate a stall legally in the district."
+  },
+  {
+    "id": "the-amber-shelf",
+    "category": "market",
+    "text": "The Amber Shelf is a curio shop on Tanner's Row in the Market District, run by Mira Thistlewick. It deals in rare maps, enchanted trinkets of dubious provenance, alchemical curiosities, and a suspiciously good selection of Dwarven lockpicks. Mira has operated the shop for thirty years and is known to ask no questions about the origin of goods."
+  },
+  {
+    "id": "merchants-circle",
+    "category": "market",
+    "text": "The Merchants' Circle is a loose guild of the seven senior traders in Ashenveil. They set import prices informally and control access to market licenses. Mira Thistlewick holds a seat on the Circle, giving her leverage over newer traders who need her endorsement."
+  },
+  {
+    "id": "amber-trade-slowdown",
+    "category": "market",
+    "text": "The amber trade has slowed noticeably this season. Three caravans from the Dwarven holds to the north have failed to arrive. Merchants in Ashenveil are unsure whether the cause is bandit activity on the eastern road, trouble in the holds themselves, or deliberate embargo."
+  },
+  {
+    "id": "corvin-dale-maps",
+    "category": "market",
+    "text": "The two maps Corvin Dale sold to Mira Thistlewick before his disappearance are now held at The Amber Shelf. The first is a hand-drawn map of a pre-founding mine complex that does not appear on any city record. The second is a detailed map of the eastern road waystation network with several routes marked in red ink in a different hand. Mira has not yet decided whether to sell them or keep them."
+  },
+  {
+    "id": "ashenveil-founding",
+    "category": "city_history",
+    "text": "Ashenveil was founded two hundred years ago as a waystation on the eastern road. The amber mines were discovered forty years after its founding and transformed it from a rest stop into a prosperous city. The mining rights are held by the city council under a charter renewed every fifty years."
+  },
+  {
+    "id": "great-fire",
+    "category": "city_history",
+    "text": "Fifteen years ago, the Great Fire destroyed half the western market district. The old mill at the edge of the district survived but has been derelict ever since. The fire was ruled an accident but rumours of arson by a rival trading faction have never fully died."
+  },
+  {
+    "id": "guard-captain-aldric-voss",
+    "category": "factions",
+    "text": "Aldric Voss is the captain of the Ashenveil city watch. He is competent, politically cautious, and known to turn a blind eye to minor market infractions in exchange for information. Three years ago, during a purge of a smuggling gang called the Seln Hooks, Mira Thistlewick sheltered one of Voss's informants in the back room of The Amber Shelf for two weeks. Voss has owed her a significant personal debt ever since and has not called it in, which Mira considers more valuable than any favour."
+  },
+  {
+    "id": "bandit-camp-east-mill",
+    "category": "factions",
+    "text": "A bandit camp has been established in the woods east of the derelict old mill. The camp is rumoured to number around twenty, led by a disgraced former city guard named Rook whose real name is believed to be Edric Marne. Rook was dismissed from the watch five years ago for extortion. The camp has been raiding merchant wagons on the eastern road, which is connected to the missing Dwarven amber caravans."
+  },
+  {
+    "id": "seln-hooks",
+    "category": "factions",
+    "text": "The Seln Hooks were a smuggling gang that operated out of the Docks district. They were largely broken up three years ago by Captain Voss's purge, but remnants are believed to still operate under new leadership. Their primary trade was in untaxed amber and forged Merchants' Circle seals."
+  },
+  {
+    "id": "corvin-dale",
+    "category": "factions",
+    "text": "Corvin Dale was a travelling merchant who specialised in rare maps, old books, and navigation instruments. He was a known regular in Ashenveil's market. Six weeks ago he was last seen at The Amber Shelf, where he sold Mira two maps: one purporting to show a pre-founding mine complex, and one of the eastern road waystation network. His wagon was found abandoned near the East Gate two days later. His fate is unknown. The city watch filed a missing-person report but no active investigation is underway."
+  },
+  {
+    "id": "warden-hill-garrison",
+    "category": "locations",
+    "text": "Warden's Hill is the elevated quarter of Ashenveil where the city garrison is based. It overlooks the Market District and the East Gate. Captain Voss's office is on the ground floor of the garrison tower. The hill also contains the city council chambers and the records archive."
+  },
+  {
+    "id": "east-gate",
+    "category": "locations",
+    "text": "The East Gate is the main entrance to Ashenveil from the eastern road. It is manned by two city watch guards at all times. Merchant wagons are inspected for Merchants' Circle seals before being permitted to trade in the Market District. Corvin Dale's abandoned wagon was found near the East Gate six weeks ago."
+  },
+  {
+    "id": "old-mill",
+    "category": "locations",
+    "text": "The old mill at the western edge of the Market District has been derelict since the Great Fire fifteen years ago. The building is structurally unsound and officially off-limits, but is used informally as a landmark. The bandit camp led by Rook is in the woods roughly half a mile east of the mill along the old cart track."
+  }
+]

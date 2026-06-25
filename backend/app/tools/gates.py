@@ -20,9 +20,6 @@ from app.memory.sqlite_store import (
 )
 from app.tools.schemas import GiveReward, StartQuest, UpdateDisposition
 
-# The model may propose any integer; we enforce this range unconditionally.
-DISPOSITION_CLAMP: tuple[int, int] = (-10, 10)
-
 
 class GateResult(BaseModel):
     accepted: bool
@@ -47,8 +44,7 @@ def validate_update_disposition(
     The gate always accepts UpdateDisposition (the reject path is introduced in S2 for tools
     that have preconditions, e.g. GiveReward requiring a completed quest).
     """
-    lo, hi = DISPOSITION_CLAMP
-    clamped = max(lo, min(hi, call.delta))
+    clamped = max(-10, min(10, call.delta))
     was_clamped = clamped != call.delta
 
     new_score = apply_disposition_delta(conn, npc_id, player_id, clamped, now)
