@@ -42,6 +42,8 @@ htmlcov/
 chroma/
 .chroma/
 backend/data/chroma/
+# LightRAG lore graph (runtime artifact, seeded via /world/seed)
+backend/data/lightrag/
 # Generated lore artifacts (source lore is committed in shared/lore/)
 backend/data/lorebook.embedded.json
 

@@ -34,20 +34,9 @@ class TalkRequest(BaseModel):
 
 
 # Per-thread_id locks so concurrent same-player turns don't interleave their checkpoint
-# read-modify-write (review HIGH-1). Single-process scope; a multi-worker deploy would need
-# a shared lock, and the per-thread_id map grows unbounded over many distinct players —
-# both documented as MVP follow-ups (ADR-0007 / review LOW-3).
+# read-modify-write (review HIGH-1). setdefault is atomic in single-process asyncio.
+# ponytail: unbounded map (one lock per distinct player) — fine for MVP, prune if needed.
 _thread_locks: dict[str, asyncio.Lock] = {}
-_thread_locks_guard = asyncio.Lock()
-
-
-async def _lock_for(thread_id: str) -> asyncio.Lock:
-    async with _thread_locks_guard:
-        lock = _thread_locks.get(thread_id)
-        if lock is None:
-            lock = asyncio.Lock()
-            _thread_locks[thread_id] = lock
-        return lock
 
 
 @router.post("/npc/{npc_id}/talk")
@@ -63,7 +52,7 @@ async def talk(npc_id: str, request: TalkRequest) -> StreamingResponse:
     # recursion_limit is a hard backstop on the agent⇄tools loop (review HIGH-1); the agent
     # node already forces a reply at MAX_AGENT_TURNS, this just bounds any pathological case.
     config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 25}
-    lock = await _lock_for(thread_id)
+    lock = _thread_locks.setdefault(thread_id, asyncio.Lock())
 
     # Per-turn input. `history` is intentionally NOT seeded — the agent node appends the
     # player turn + reply and the checkpointer merges them into the durable thread. The
@@ -80,8 +69,12 @@ async def talk(npc_id: str, request: TalkRequest) -> StreamingResponse:
         streamed_any = False
         async with lock:
             try:
-                async for event in graph.astream_events(turn_input, config, version="v2"):
-                    if event["event"] == "on_chat_model_stream" and "persona" in event.get("tags", []):
+                async for event in graph.astream_events(
+                    turn_input, config, version="v2"
+                ):
+                    if event[
+                        "event"
+                    ] == "on_chat_model_stream" and "persona" in event.get("tags", []):
                         content = event["data"]["chunk"].content
                         if isinstance(content, str) and content:
                             streamed_any = True
@@ -89,7 +82,11 @@ async def talk(npc_id: str, request: TalkRequest) -> StreamingResponse:
             except Exception:
                 # The turn graph guards each node, but if anything still escapes mid-stream
                 # we log and end the stream cleanly rather than leak a traceback to the client.
-                logger.exception("Turn graph failed mid-stream — NPC: %s  thread: %s", npc_id, thread_id)
+                logger.exception(
+                    "Turn graph failed mid-stream — NPC: %s  thread: %s",
+                    npc_id,
+                    thread_id,
+                )
         # Never hand the client an empty 200 (review MEDIUM-1): if no persona token streamed
         # (empty/errored generation, or a forced reply that produced nothing), emit a fallback.
         if not streamed_any:

@@ -30,6 +30,8 @@ class TurnState(TypedDict, total=False):
     current_score: int
     recalled: list[dict]
     memory_block: str
+    lore_block: str
+    grounded: bool
 
     # --- Tool-loop scratch (prose-free; overwritten, NOT reduced). ---
     # Working messages for the agent⇄tools cycle: the routing turn is rebuilt each

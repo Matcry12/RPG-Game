@@ -10,6 +10,7 @@ Status: `todo` · `researching` · `decided`. Promote queryable findings via `wi
 | [propose-dispose-tools](./propose-dispose-tools.md) | 3. Gated tools | todo | GBNF grammar generation from Pydantic; gate rejection feedback loop |
 | [serving-latency](./serving-latency.md) | 4. Serving & latency | todo | GPU vs CPU; KV prefix cache mechanics; latency budget |
 | [eval-redteam](./eval-redteam.md) | 5. Eval & red-team | todo | judge calibration set size; attack taxonomy |
+| [lore-query-improvement](./lore-query-improvement.md) | 2. Layered memory (S6) | decided | Cross-session vague query resolution → Haiku query rewriting via claude CLI (deferred to S6) |
 
 ## Conventions
 

@@ -9,7 +9,7 @@ import sqlite3
 import pytest
 
 from app.memory.sqlite_store import get_disposition, init_db
-from app.tools.gates import DISPOSITION_CLAMP, validate_update_disposition
+from app.tools.gates import validate_update_disposition
 from app.tools.schemas import UpdateDisposition
 
 NOW = "2026-01-01T00:00:00+00:00"
@@ -31,6 +31,7 @@ def conn():
 # Normal delta: persists and accumulates
 # ---------------------------------------------------------------------------
 
+
 def test_normal_delta_persists(conn):
     result = validate_update_disposition(
         UpdateDisposition(delta=3), NPC, PLAYER, conn, now=NOW
@@ -43,7 +44,9 @@ def test_normal_delta_persists(conn):
 
 def test_normal_delta_accumulates(conn):
     validate_update_disposition(UpdateDisposition(delta=3), NPC, PLAYER, conn, now=NOW)
-    result = validate_update_disposition(UpdateDisposition(delta=3), NPC, PLAYER, conn, now=NOW)
+    result = validate_update_disposition(
+        UpdateDisposition(delta=3), NPC, PLAYER, conn, now=NOW
+    )
     assert result.new_score == 6
     assert get_disposition(conn, NPC, PLAYER) == 6
 
@@ -51,6 +54,7 @@ def test_normal_delta_accumulates(conn):
 # ---------------------------------------------------------------------------
 # Clamping: the gate enforces [-10, 10] unconditionally
 # ---------------------------------------------------------------------------
+
 
 def test_absurd_negative_clamped_to_minus_10(conn):
     result = validate_update_disposition(
@@ -83,6 +87,7 @@ def test_within_range_not_clamped(conn):
 # ---------------------------------------------------------------------------
 # Clamp boundaries are exact
 # ---------------------------------------------------------------------------
+
 
 def test_clamp_boundary_minus_10_exact(conn):
     result = validate_update_disposition(
@@ -120,6 +125,7 @@ def test_clamp_boundary_plus_11_is_clamped(conn):
 # Stringified delta is coerced (Groq/Llama emits "-8"; schema accepts int|str)
 # ---------------------------------------------------------------------------
 
+
 def test_string_delta_is_coerced_to_int():
     """Groq/Llama frequently sends delta as a string ("-8"); the schema must coerce it.
 
@@ -144,12 +150,6 @@ def test_schema_sent_to_groq_accepts_string_for_delta():
     schema = UpdateDisposition.model_json_schema()
     delta = schema["properties"]["delta"]
     types = {opt.get("type") for opt in delta.get("anyOf", [])}
-    assert {"integer", "string"} <= types, f"delta schema must accept string, got {delta}"
-
-
-# ---------------------------------------------------------------------------
-# DISPOSITION_CLAMP constant sanity
-# ---------------------------------------------------------------------------
-
-def test_clamp_constant():
-    assert DISPOSITION_CLAMP == (-10, 10)
+    assert {"integer", "string"} <= types, (
+        f"delta schema must accept string, got {delta}"
+    )

@@ -4,6 +4,7 @@ from fastapi import FastAPI
 
 from app.api.state import router as state_router
 from app.api.talk import router as talk_router
+from app.api.world import router as world_router
 from app.config import settings
 from app.memory.sqlite_store import connect, init_db
 
@@ -23,3 +24,4 @@ app = FastAPI(title="NPC Agent Service", lifespan=lifespan)
 
 app.include_router(talk_router)
 app.include_router(state_router)
+app.include_router(world_router)

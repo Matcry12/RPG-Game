@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"grep -rn \\\"MAX_AGENT_TURNS\\\\|force_reply\\\\|agent_turns\\\\|recursion_limit\\\" app/ tests/ docs/ 2>/dev/null\",\"description\":\"Grep cap-related symbols\"}",
-  "error": "Exit code 2\napp/graph/state.py:38:    agent_turns: int\napp/graph/nodes.py:10:  inside the node: once ``agent_turns >= MAX_AGENT_TURNS`` the agent is invoked WITHOUT tools,\napp/graph/nodes.py:50:MAX_AGENT_TURNS = 3\napp/graph/nodes.py:166:        \"agent_turns\": 0,\napp/graph/nodes.py:188:    turns = state.get(\"agent_turns\", 0)\napp/graph/nodes.py:189:    force_reply = turns >= MAX_AGENT_TURNS\napp/graph/nodes.py:195:    llm = get_agent_llm(with_tools=not force_reply).with_config(tags=[\"persona\"])\napp...",
-  "timestamp": "2026-06-24T08:52:37.955Z",
-  "retry_count": 1
+  "tool_input_preview": "{\"command\":\"uv run python -c \\\"\\nimport inspect\\nfrom lightrag import LightRAG, QueryParam\\nfrom lightrag.utils import EmbeddingFunc\\nprint('LightRAG init sig:', inspect.signature(LightRAG.__init__))\\...",
+  "error": "Exit code 1\nINFO: Creating working directory /tmp/lgtest\nINFO: [] Created new empty graph file: /tmp/lgtest/graph_chunk_entity_relation.graphml\nTraceback (most recent call last):\n  File \"<string>\", line 12, in <module>\n    rag = LightRAG(working_dir='/tmp/lgtest')\n  File \"<string>\", line 72, in __init__\n  File \"/home/matcry/Developer/RPG-Game/backend/.venv/lib/python3.13/site-packages/lightrag/lightrag.py\", line 1165, in __post_init__\n    self.entities_vdb: BaseVectorStorage = self.vector_db_sto...",
+  "timestamp": "2026-06-24T17:08:40.544Z",
+  "retry_count": 2
 }
