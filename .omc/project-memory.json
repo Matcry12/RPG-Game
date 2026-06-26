@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1782316350914,
+  "lastScanned": 1782452799261,
   "projectRoot": "/home/matcry/Developer/RPG-Game",
   "techStack": {
     "languages": [],
@@ -38,7 +38,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1782316350911,
+      "lastAccessed": 1782452799259,
       "keyFiles": [
         "README.md",
         "pyproject.toml",
@@ -49,7 +49,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1782316350911,
+      "lastAccessed": 1782452799260,
       "keyFiles": [
         "README.md"
       ]
@@ -58,7 +58,7 @@
       "path": "game",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782316350912,
+      "lastAccessed": 1782452799260,
       "keyFiles": [
         "README.md"
       ]
@@ -67,7 +67,7 @@
       "path": "shared",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782316350913,
+      "lastAccessed": 1782452799260,
       "keyFiles": [
         "README.md"
       ]
@@ -76,7 +76,7 @@
       "path": "backend/app",
       "purpose": "Application code",
       "fileCount": 3,
-      "lastAccessed": 1782316350913,
+      "lastAccessed": 1782452799261,
       "keyFiles": [
         "__init__.py",
         "config.py",
@@ -86,116 +86,15 @@
     "backend/data": {
       "path": "backend/data",
       "purpose": "Data files",
-      "fileCount": 1,
-      "lastAccessed": 1782316350913,
+      "fileCount": 5,
+      "lastAccessed": 1782452799261,
       "keyFiles": [
-        "npc.db"
+        "checkpoints.db",
+        "checkpoints.db-shm",
+        "checkpoints.db-wal"
       ]
     }
   },
-  "hotPaths": [
-    {
-      "path": "backend/app/graph/nodes.py",
-      "accessCount": 15,
-      "lastAccessed": 1782385704034,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/config.py",
-      "accessCount": 3,
-      "lastAccessed": 1782318811588,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/serving/llm.py",
-      "accessCount": 3,
-      "lastAccessed": 1782318812080,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/memory/vector_store.py",
-      "accessCount": 2,
-      "lastAccessed": 1782316567915,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/tools/gates.py",
-      "accessCount": 2,
-      "lastAccessed": 1782316573992,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/api/talk.py",
-      "accessCount": 2,
-      "lastAccessed": 1782318707112,
-      "type": "file"
-    },
-    {
-      "path": "backend/data/personas/shopkeeper.md",
-      "accessCount": 2,
-      "lastAccessed": 1782318710269,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/main.py",
-      "accessCount": 2,
-      "lastAccessed": 1782318813021,
-      "type": "file"
-    },
-    {
-      "path": "docs/npc-agent-service/v2/plan.md",
-      "accessCount": 1,
-      "lastAccessed": 1782316402445,
-      "type": "file"
-    },
-    {
-      "path": "MEMORY.md",
-      "accessCount": 1,
-      "lastAccessed": 1782316402668,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/graph/state.py",
-      "accessCount": 1,
-      "lastAccessed": 1782316407717,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/tools/schemas.py",
-      "accessCount": 1,
-      "lastAccessed": 1782316415112,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/memory/sqlite_store.py",
-      "accessCount": 1,
-      "lastAccessed": 1782316415362,
-      "type": "file"
-    },
-    {
-      "path": "docs/npc-agent-service/v2/implementation.md",
-      "accessCount": 1,
-      "lastAccessed": 1782317040784,
-      "type": "file"
-    },
-    {
-      "path": "backend/pyproject.toml",
-      "accessCount": 1,
-      "lastAccessed": 1782318705717,
-      "type": "file"
-    },
-    {
-      "path": "backend/tests/conftest.py",
-      "accessCount": 1,
-      "lastAccessed": 1782318706140,
-      "type": "file"
-    },
-    {
-      "path": "backend/app/api/state.py",
-      "accessCount": 1,
-      "lastAccessed": 1782318707082,
-      "type": "file"
-    }
-  ],
+  "hotPaths": [],
   "userDirectives": []
 }

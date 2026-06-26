@@ -29,3 +29,6 @@ Copy `0000-template.md` for each new decision.
 | [0007](0007-s4-loop-shape-and-checkpointer.md) | S4 loop shape: prose-free tool-loop + separate persona render, SqliteSaver checkpointer | Superseded by 0009 | 2026-06-23 |
 | [0008](0008-tolerant-numeric-tool-arg-schemas.md) | Tolerant numeric tool-arg schemas (`int \| str` + coerce) to prevent Groq `tool_use_failed` | Accepted | 2026-06-24 |
 | [0009](0009-unified-agent-turn.md) | Unify the turn into a single persona+tools ReAct agent (supersedes 0007's split) | Accepted | 2026-06-24 |
+| [0010](0010-lightrag-lore-grounding.md) | LightRAG per-NPC knowledge graphs for lore retrieval and grounding gate | Accepted | 2026-06-25 |
+| [0011](0011-memory-stream-scoring.md) | Memory stream: weighted retrieval α·recency + β·importance + γ·relevance (S6) | Accepted | 2026-06-25 |
+| [0012](0012-keep-episodic-memory.md) | Keep ChromaDB episodic memory for portfolio/ablation; plain history nearly matches for short demos | Accepted | 2026-06-25 |

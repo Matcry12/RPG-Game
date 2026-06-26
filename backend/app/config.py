@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     lightrag_path: Path = _BACKEND_DIR / "data" / "lightrag"
     grounding_gate: bool = True
     lore_context_min_chars: int = 100
+    memory_stream: bool = False
 
 
 settings = Settings()
