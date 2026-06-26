@@ -11,6 +11,7 @@ unit-testable without a real PersistentClient (mirrors sqlite_store.py style).
 import asyncio
 import functools
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 import chromadb
@@ -18,7 +19,10 @@ import numpy as np
 from chromadb import ClientAPI, Collection
 from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 from lightrag import LightRAG, QueryParam
+from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc
+
+from app.memory.stream import score_memories
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +139,73 @@ def retrieve_episodic(
             "timestamp": meta.get("timestamp"),
         }
         for doc, meta in zip(docs, metas)
+    ]
+
+
+def retrieve_episodic_scored(
+    collection: Collection,
+    *,
+    npc_id: str,
+    player_id: str,
+    query: str,
+    k: int = 3,
+    now: datetime | None = None,
+) -> list[dict]:
+    """Return top-k episodic events ranked by α·recency + β·importance + γ·relevance.
+
+    Fetches up to k*4 candidates from Chroma (cosine similarity), then re-ranks
+    using score_memories(). Falls back to [] on any error (same contract as retrieve_episodic).
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    try:
+        count = collection.count()
+    except Exception:
+        return []
+
+    if count == 0:
+        return []
+
+    fetch = max(k, min(k * 4, count))
+    try:
+        results = collection.query(
+            query_texts=[query],
+            n_results=fetch,
+            where={
+                "$and": [{"npc_id": {"$eq": npc_id}}, {"player_id": {"$eq": player_id}}]
+            },
+            include=["documents", "metadatas", "distances"],
+        )
+    except Exception:
+        return []
+
+    docs = results.get("documents", [[]])[0]
+    metas = results.get("metadatas", [[]])[0]
+    dists = results.get("distances", [[]])[0]
+
+    if not docs:
+        return []
+
+    candidates = [
+        {
+            "text": doc,
+            "importance": meta.get("importance"),
+            "timestamp": meta.get("timestamp"),
+            "distance": dist,
+        }
+        for doc, meta, dist in zip(docs, metas, dists)
+    ]
+
+    ranked = score_memories(candidates, now)
+    return [
+        {
+            "text": c["text"],
+            "importance": c["importance"],
+            "timestamp": c["timestamp"],
+            "score": c["score"],
+        }
+        for c in ranked[:k]
     ]
 
 

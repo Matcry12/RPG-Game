@@ -149,9 +149,14 @@ async def retrieve_context(state: TurnState) -> dict:
     try:
         client = get_client(settings.chroma_path)
         episodic = get_episodic_collection(client)
-        recalled = retrieve_episodic(
-            episodic, npc_id=npc_id, player_id=player_id, query=message, k=3
-        )
+        if settings.memory_stream:
+            recalled = retrieve_episodic_scored(
+                episodic, npc_id=npc_id, player_id=player_id, query=message, k=3
+            )
+        else:
+            recalled = retrieve_episodic(
+                episodic, npc_id=npc_id, player_id=player_id, query=message, k=3
+            )
     except Exception as exc:  # recall is best-effort context, never fatal
         logger.warning(
             "Episodic recall failed (degrading to no recall) — (%s,%s): %s",
