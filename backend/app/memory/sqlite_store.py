@@ -68,6 +68,13 @@ def init_db(conn: sqlite3.Connection) -> None:
             PRIMARY KEY (player_id, quest_id)
         );
 
+        CREATE TABLE IF NOT EXISTS importance_accumulator (
+            npc_id    TEXT NOT NULL,
+            player_id TEXT NOT NULL,
+            total     INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (npc_id, player_id)
+        );
+
         INSERT OR IGNORE INTO players (id, name) VALUES ('p1', 'Traveller');
         INSERT OR IGNORE INTO npcs    (id, name) VALUES ('shopkeeper', 'Mira Thistlewick');
 
@@ -223,6 +230,45 @@ def grant_reward(
 # ---------------------------------------------------------------------------
 # Disposition read / write
 # ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# Importance accumulator (S7 reflection trigger)
+# ---------------------------------------------------------------------------
+
+
+def get_importance_sum(conn: sqlite3.Connection, npc_id: str, player_id: str) -> int:
+    """Return the current accumulated importance total; 0 if no row exists."""
+    row = conn.execute(
+        "SELECT total FROM importance_accumulator WHERE npc_id = ? AND player_id = ?",
+        (npc_id, player_id),
+    ).fetchone()
+    return int(row["total"]) if row else 0
+
+
+def add_to_importance_sum(
+    conn: sqlite3.Connection, npc_id: str, player_id: str, amount: int
+) -> int:
+    """Add amount to the accumulator. Returns the new total."""
+    conn.execute(
+        """
+        INSERT INTO importance_accumulator (npc_id, player_id, total)
+        VALUES (?, ?, ?)
+        ON CONFLICT(npc_id, player_id) DO UPDATE SET total = total + excluded.total
+        """,
+        (npc_id, player_id, amount),
+    )
+    conn.commit()
+    return get_importance_sum(conn, npc_id, player_id)
+
+
+def reset_importance_sum(conn: sqlite3.Connection, npc_id: str, player_id: str) -> None:
+    """Reset the accumulator to 0 after a reflection fires."""
+    conn.execute(
+        "UPDATE importance_accumulator SET total = 0 WHERE npc_id = ? AND player_id = ?",
+        (npc_id, player_id),
+    )
+    conn.commit()
+
 
 def apply_disposition_delta(
     conn: sqlite3.Connection,

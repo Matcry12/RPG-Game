@@ -12,10 +12,7 @@ All three components normalised to [0, 1]; weights sum to 1.
 import math
 from datetime import datetime, timezone
 
-ALPHA = 0.35  # recency weight
-BETA = 0.35  # importance weight
-GAMMA = 0.30  # relevance weight
-DECAY = 0.1  # per-hour exponential decay (half-life ≈ 7 h)
+from app.config import settings
 
 
 def score_memories(candidates: list[dict], now: datetime) -> list[dict]:
@@ -24,6 +21,7 @@ def score_memories(candidates: list[dict], now: datetime) -> list[dict]:
     Each candidate dict must have: text, importance (int 1–10), timestamp (ISO),
     distance (float, cosine distance from Chroma — lower = more similar).
     Returns the same dicts with a 'score' key added.
+    Weights and decay are read from settings so they can be tuned without code changes.
     """
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
@@ -35,14 +33,14 @@ def score_memories(candidates: list[dict], now: datetime) -> list[dict]:
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=timezone.utc)
             hours_ago = max(0.0, (now - ts).total_seconds() / 3600)
-            recency = math.exp(-DECAY * hours_ago)
+            recency = math.exp(-settings.stream_decay * hours_ago)
         except Exception:
             recency = 0.5
 
         importance = max(0.0, min(1.0, (c.get("importance") or 5) / 10))
         relevance = max(0.0, 1.0 - min(1.0, c.get("distance", 1.0)))
 
-        score = ALPHA * recency + BETA * importance + GAMMA * relevance
+        score = settings.stream_alpha * recency + settings.stream_beta * importance + settings.stream_gamma * relevance
         out.append({**c, "score": round(score, 4)})
 
     return sorted(out, key=lambda x: x["score"], reverse=True)
