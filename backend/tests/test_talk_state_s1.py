@@ -100,7 +100,7 @@ async def test_agent_that_always_calls_tools_terminates(chroma):
     (delta -1 each → -3) and the turn terminates (no recursion runaway). With no prose ever
     produced, the endpoint emits the '...' fallback.
     """
-    from app.graph.nodes import MAX_AGENT_TURNS
+    from app.config import settings
 
     # A single tool turn that repeats forever (make_scripted_chat repeats the last turn).
     llm = make_scripted_chat([tool_turn("UpdateDisposition", {"delta": -1})])
@@ -115,8 +115,8 @@ async def test_agent_that_always_calls_tools_terminates(chroma):
             assert talk_resp.text == "..."  # no prose ever produced → fallback
             state_resp = await client.get("/npc/shopkeeper/state?player_id=p1")
 
-    # Exactly MAX_AGENT_TURNS gate rounds ran, each delta -1.
-    assert state_resp.json()["disposition"] == -MAX_AGENT_TURNS
+    # Exactly agent_max_turns gate rounds ran, each delta -1.
+    assert state_resp.json()["disposition"] == -settings.agent_max_turns
 
 
 @pytest.mark.asyncio

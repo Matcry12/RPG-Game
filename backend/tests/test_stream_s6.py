@@ -15,7 +15,7 @@ import chromadb
 import pytest
 from chromadb import EmbeddingFunction, Embeddings
 
-from app.memory.stream import ALPHA, BETA, GAMMA, score_memories
+from app.memory.stream import score_memories
 from app.memory.vector_store import (
     get_episodic_collection,
     retrieve_episodic_scored,
@@ -59,7 +59,7 @@ def test_perfect_memory_scores_one():
         }
     ]
     assert (
-        abs(score_memories(candidates, NOW)[0]["score"] - (ALPHA + BETA + GAMMA)) < 0.01
+        abs(score_memories(candidates, NOW)[0]["score"] - 1.0) < 0.01  # weights sum to 1
     )
 
 

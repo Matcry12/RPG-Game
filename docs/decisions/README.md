@@ -32,3 +32,4 @@ Copy `0000-template.md` for each new decision.
 | [0010](0010-lightrag-lore-grounding.md) | LightRAG per-NPC knowledge graphs for lore retrieval and grounding gate | Accepted | 2026-06-25 |
 | [0011](0011-memory-stream-scoring.md) | Memory stream: weighted retrieval α·recency + β·importance + γ·relevance (S6) | Accepted | 2026-06-25 |
 | [0012](0012-keep-episodic-memory.md) | Keep ChromaDB episodic memory for portfolio/ablation; plain history nearly matches for short demos | Accepted | 2026-06-25 |
+| [0013](0013-reflection-pass.md) | S7 reflection: importance accumulator → threshold → Groq belief synthesis → beliefs Chroma collection | Accepted | 2026-06-26 |

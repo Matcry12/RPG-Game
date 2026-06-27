@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastScanned": 1782452799261,
+  "lastScanned": 1782569496687,
   "projectRoot": "/home/matcry/Developer/RPG-Game",
   "techStack": {
     "languages": [],
@@ -38,7 +38,7 @@
       "path": "backend",
       "purpose": null,
       "fileCount": 5,
-      "lastAccessed": 1782452799259,
+      "lastAccessed": 1782569496684,
       "keyFiles": [
         "README.md",
         "pyproject.toml",
@@ -49,7 +49,7 @@
       "path": "docs",
       "purpose": "Documentation",
       "fileCount": 1,
-      "lastAccessed": 1782452799260,
+      "lastAccessed": 1782569496685,
       "keyFiles": [
         "README.md"
       ]
@@ -58,7 +58,7 @@
       "path": "game",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782452799260,
+      "lastAccessed": 1782569496686,
       "keyFiles": [
         "README.md"
       ]
@@ -67,7 +67,7 @@
       "path": "shared",
       "purpose": null,
       "fileCount": 1,
-      "lastAccessed": 1782452799260,
+      "lastAccessed": 1782569496686,
       "keyFiles": [
         "README.md"
       ]
@@ -76,7 +76,7 @@
       "path": "backend/app",
       "purpose": "Application code",
       "fileCount": 3,
-      "lastAccessed": 1782452799261,
+      "lastAccessed": 1782569496686,
       "keyFiles": [
         "__init__.py",
         "config.py",
@@ -87,7 +87,7 @@
       "path": "backend/data",
       "purpose": "Data files",
       "fileCount": 5,
-      "lastAccessed": 1782452799261,
+      "lastAccessed": 1782569496686,
       "keyFiles": [
         "checkpoints.db",
         "checkpoints.db-shm",
@@ -95,6 +95,49 @@
       ]
     }
   },
-  "hotPaths": [],
+  "hotPaths": [
+    {
+      "path": "backend/app/graph/nodes.py",
+      "accessCount": 6,
+      "lastAccessed": 1782455266775,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/memory/sqlite_store.py",
+      "accessCount": 4,
+      "lastAccessed": 1782455199720,
+      "type": "file"
+    },
+    {
+      "path": "CLAUDE.md",
+      "accessCount": 3,
+      "lastAccessed": 1782454152861,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/config.py",
+      "accessCount": 3,
+      "lastAccessed": 1782455185387,
+      "type": "file"
+    },
+    {
+      "path": "MEMORY.md",
+      "accessCount": 2,
+      "lastAccessed": 1782455023311,
+      "type": "file"
+    },
+    {
+      "path": "backend/app/memory/vector_store.py",
+      "accessCount": 1,
+      "lastAccessed": 1782455214829,
+      "type": "file"
+    },
+    {
+      "path": "backend/eval/s7_manual_test.md",
+      "accessCount": 1,
+      "lastAccessed": 1782571249996,
+      "type": "file"
+    }
+  ],
   "userDirectives": []
 }

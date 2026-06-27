@@ -1,3 +1,4 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -7,6 +8,13 @@ from app.api.talk import router as talk_router
 from app.api.world import router as world_router
 from app.config import settings
 from app.memory.sqlite_store import connect, init_db
+
+# LangChain reads tracing config from os.environ, not from settings directly.
+# Propagate here so values from .env are picked up.
+if settings.langchain_tracing_v2:
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+    os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
 
 
 @asynccontextmanager

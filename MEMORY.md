@@ -19,6 +19,12 @@ _Format each as:_
 > ### YYYY-MM-DD — <what went wrong, one line>
 > **What happened:** … **Root cause:** … **Fix / what to do instead:** … **Watch for:** <how to catch it early next time>
 
+### 2026-06-26 — S7 live eval blocked by prose-leak: UpdateDisposition emitted as text, gate never ran
+**What happened:** All S7 eval turns showed `<function=UpdateDisposition>delta=-5</function>` as plain text in the reply, not as a structured tool call. Gate never ran, accumulator stayed at 0, reflection never fired. The 8b model (`llama-3.1-8b-instant`) is more prone to this than 70b.
+**Root cause:** Prose-leak (ADR-0009 §residuals) — the NPC system prompt instructs "call the tool, no dialogue" by instruction only, not structurally. The smaller model ignores this instruction on UpdateDisposition while respecting it on StartQuest.
+**Fix / what to do instead:** (1) Confirm `.env` has `llama-3.3-70b-versatile`, not `llama-3.1-8b-instant`. (2) If still leaking on 70b, add an explicit rule to the system prompt: "You MUST call UpdateDisposition as a tool call, never write it as text in your reply." (3) Check LangSmith — if `tool_calls` is empty on the AIMessage but the reply text contains `<function=...>`, it is a prose-leak.
+**Watch for:** Any eval that relies on tool calls firing reliably — verify LangSmith shows a real `tool_calls` array, not just text output.
+
 ### 2026-06-25 — LightRAG 1.5.4: `auto_manage_storages_states=True` is in the signature but ignored at runtime
 **What happened:** The plan specified `auto_manage_storages_states=True` to skip manual `initialize_storages()` calls. The param exists in the dataclass signature but is never consulted in `__post_init__` — calling without explicit `await rag.initialize_storages()` raises `PipelineNotInitializedError` at first use.
 **Root cause:** LightRAG 1.5.4 has the field but the auto-init behavior is not yet implemented.
@@ -66,6 +72,32 @@ Resolved in `docs/npc-agent-service/v2/plan.md` §10 (were §9 in v1).
 
 ---
 
+## S7 design (agreed, ready to implement)
+
+**Importance scoring (final):**
+- Plain turns: `importance = 0` — if nothing fired, nothing significant happened
+- `UpdateDisposition(delta)`: `importance = min(10, abs(delta))` — gate already computed significance
+- `StartQuest`: `importance = 5`
+- `GiveReward`: `importance = 7`
+
+**Summary field:** store at `write_episodic` time alongside `text` — deterministic, no LLM:
+- Tool events: reuse `_tool_event_sentence()` output (already clean)
+- Plain turns: `message[:100]` (unused for reflection since importance=0, but stored for future)
+
+**Reflection retrieval:** `collection.get()` with `where importance >= 5` + Python sort by recency, top 10. No embedding query — no natural query exists at reflection time.
+
+**Reflection prompt (Option B):** "Given these events, what is your single strongest feeling or conclusion about this player? One sentence, in Mira's voice, first person."
+
+**Accumulator:** per `(npc_id, player_id)` in SQLite (new `importance_sum` column). Resets to 0 after reflection fires.
+
+**Threshold:** `REFLECTION_THRESHOLD = 20` (config flag). ~2–3 major disposition swings OR 4 quest completions.
+
+**Feature flag:** `REFLECTION = false` (ablation switch). Off = S6 behaviour unchanged.
+
+**Beliefs collection:** same Chroma shape as episodic, `importance = 9`. Retrieved alongside episodic in `retrieve_context`.
+
+---
+
 ## Deferred ideas (parked for later discussion)
 
 ### Cross-session LightRAG query improvement (parked 2026-06-25)
@@ -78,7 +110,7 @@ Resolved in `docs/npc-agent-service/v2/plan.md` §10 (were §9 in v1).
 
 ## Current phase
 
-**S0 ✅ · S1 ✅ · S2 ✅ · S3 ✅ · S4 ✅ · S5 ✅ · S6 ✅ done (memory stream scoring) → S7 next.** S4 (LangGraph + SQLite checkpointer) built 2026-06-23, then **refactored to a unified agent 2026-06-24** on branch `slice/s4-langgraph-checkpointer` (not yet committed/merged — user handles git). Graph in `app/graph/{state,nodes,build}.py`: **`retrieve_context → agent(persona+tools) ⇄ tools(gate-backed) → write_memory`**. **ONE persona+tools ReAct agent** both proposes tools and writes the in-character reply ([ADR-0009](docs/decisions/0009-unified-agent-turn.md), **supersedes ADR-0007's prose-free split**). Cap (`MAX_AGENT_TURNS=3`) enforced INSIDE the agent — overflow turn drops tools → forced reply (no separate render node, no silent drop). Gate rejections fold back as `ToolMessage`s the agent re-reasons over → refusals explained in character (subsumes ADR-0004's note). `tool_use_failed` cured at the schema layer (`int|str` coercion, ADR-0008) — NOT by prompt separation. `AsyncSqliteSaver` (langgraph **1.2.6**) at `settings.checkpoint_path` (`data/checkpoints.db`, gitignored via `*.db`), `thread_id=f"{npc_id}:{player_id}"`; durable windowed `history` (add_messages, last 20 msgs into prompt) survives restart; per-turn scratch reset in entry node. `talk.py` slim endpoint, per-`thread_id` asyncio lock, `astream_events(version="v2")` forwarding ONLY persona-tagged tokens. Gate still the sole SQLite writer; Chroma recall-only. Tests use a custom scripted streaming+tool fake (`make_scripted_chat`) patched at `app.graph.nodes.get_agent_llm` (stock `GenericFakeChatModel` can't stream tool calls). **45 offline tests pass + LIVE-verified vs Groq** (insult → UpdateDisposition fired + in-character reply; reward-for-unstarted-quest → refused in character, no reward granted). **Re-reviewed** (separate `code-reviewer` pass): 0 CRITICAL, both hard rules upheld; fixes folded — **structural loop termination** (forced turn ignores echoed tool calls → always ends on a reply; `recursion_limit=25` backstop; regression test), empty-stream `"..."` fallback, guarded DB-open in tools node, removed dead `last_gate`. Residuals documented in ADR-0009 addendum (tool-turn prose-leak is by-instruction not structural). Next: **S5** — Chroma lore + grounding gate. Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
+**S0 ✅ · S1 ✅ · S2 ✅ · S3 ✅ · S4 ✅ · S5 ✅ · S6 ✅ · S7 ✅ done (reflection pass) → S8 next.** S4 (LangGraph + SQLite checkpointer) built 2026-06-23, then **refactored to a unified agent 2026-06-24** on branch `slice/s4-langgraph-checkpointer` (not yet committed/merged — user handles git). Graph in `app/graph/{state,nodes,build}.py`: **`retrieve_context → agent(persona+tools) ⇄ tools(gate-backed) → write_memory`**. **ONE persona+tools ReAct agent** both proposes tools and writes the in-character reply ([ADR-0009](docs/decisions/0009-unified-agent-turn.md), **supersedes ADR-0007's prose-free split**). Cap (`MAX_AGENT_TURNS=3`) enforced INSIDE the agent — overflow turn drops tools → forced reply (no separate render node, no silent drop). Gate rejections fold back as `ToolMessage`s the agent re-reasons over → refusals explained in character (subsumes ADR-0004's note). `tool_use_failed` cured at the schema layer (`int|str` coercion, ADR-0008) — NOT by prompt separation. `AsyncSqliteSaver` (langgraph **1.2.6**) at `settings.checkpoint_path` (`data/checkpoints.db`, gitignored via `*.db`), `thread_id=f"{npc_id}:{player_id}"`; durable windowed `history` (add_messages, last 20 msgs into prompt) survives restart; per-turn scratch reset in entry node. `talk.py` slim endpoint, per-`thread_id` asyncio lock, `astream_events(version="v2")` forwarding ONLY persona-tagged tokens. Gate still the sole SQLite writer; Chroma recall-only. Tests use a custom scripted streaming+tool fake (`make_scripted_chat`) patched at `app.graph.nodes.get_agent_llm` (stock `GenericFakeChatModel` can't stream tool calls). **45 offline tests pass + LIVE-verified vs Groq** (insult → UpdateDisposition fired + in-character reply; reward-for-unstarted-quest → refused in character, no reward granted). **Re-reviewed** (separate `code-reviewer` pass): 0 CRITICAL, both hard rules upheld; fixes folded — **structural loop termination** (forced turn ignores echoed tool calls → always ends on a reply; `recursion_limit=25` backstop; regression test), empty-stream `"..."` fallback, guarded DB-open in tools node, removed dead `last_gate`. Residuals documented in ADR-0009 addendum (tool-turn prose-leak is by-instruction not structural). Next: **S5** — Chroma lore + grounding gate. Build approach: vertical slices ([ADR-0002](docs/decisions/0002-vertical-slice-build-approach.md)).
 
 ## Project state snapshot
 

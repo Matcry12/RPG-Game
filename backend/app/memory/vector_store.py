@@ -22,6 +22,7 @@ from lightrag import LightRAG, QueryParam
 from lightrag.llm.openai import openai_complete_if_cache
 from lightrag.utils import EmbeddingFunc
 
+from app.config import settings
 from app.memory.stream import score_memories
 
 
@@ -167,7 +168,7 @@ def retrieve_episodic_scored(
     if count == 0:
         return []
 
-    fetch = max(k, min(k * 4, count))
+    fetch = max(k, min(k * settings.episodic_candidate_factor, count))
     try:
         results = collection.query(
             query_texts=[query],
@@ -207,6 +208,126 @@ def retrieve_episodic_scored(
         }
         for c in ranked[:k]
     ]
+
+
+# ---------------------------------------------------------------------------
+# Beliefs collection (S7 reflection output)
+# ---------------------------------------------------------------------------
+
+
+def get_beliefs_collection(client: ClientAPI, *, embedding_function=None) -> Collection:
+    """Return (or create) the 'beliefs' collection — stores NPC reflection conclusions."""
+    kwargs: dict = {"name": "beliefs"}
+    if embedding_function is not None:
+        kwargs["embedding_function"] = embedding_function
+    return client.get_or_create_collection(**kwargs)
+
+
+def write_belief(
+    collection: Collection,
+    *,
+    npc_id: str,
+    player_id: str,
+    text: str,
+    timestamp: str,
+) -> None:
+    """Append one belief document (a reflection conclusion) to the collection."""
+    collection.add(
+        documents=[text],
+        metadatas=[
+            {
+                "npc_id": npc_id,
+                "player_id": player_id,
+                "timestamp": timestamp,
+                "importance": 9,
+            }
+        ],
+        ids=[uuid.uuid4().hex],
+    )
+
+
+def retrieve_for_reflection(
+    collection: Collection,
+    *,
+    npc_id: str,
+    player_id: str,
+    min_importance: int,
+    limit: int = 10,
+) -> list[dict]:
+    """Fetch up to `limit` high-importance episodic events sorted by recency.
+
+    Uses metadata filtering (no embedding query) — there is no natural query at
+    reflection time. Returns [] gracefully on any error.
+    """
+    try:
+        count = collection.count()
+    except Exception:
+        return []
+    if count == 0:
+        return []
+    try:
+        results = collection.get(
+            where={
+                "$and": [
+                    {"npc_id": {"$eq": npc_id}},
+                    {"player_id": {"$eq": player_id}},
+                    {"importance": {"$gte": min_importance}},
+                ]
+            },
+            include=["documents", "metadatas"],
+        )
+    except Exception:
+        return []
+    docs = results.get("documents", [])
+    metas = results.get("metadatas", [])
+    if not docs:
+        return []
+    pairs = sorted(
+        zip(docs, metas),
+        key=lambda x: x[1].get("timestamp", ""),
+        reverse=True,
+    )
+    return [
+        {"text": d, "importance": m.get("importance"), "timestamp": m.get("timestamp")}
+        for d, m in pairs[:limit]
+    ]
+
+
+def retrieve_beliefs(
+    collection: Collection,
+    *,
+    npc_id: str,
+    player_id: str,
+) -> list[dict]:
+    """Fetch all beliefs for this (npc, player) pair, newest first."""
+    try:
+        count = collection.count()
+    except Exception:
+        return []
+    if count == 0:
+        return []
+    try:
+        results = collection.get(
+            where={
+                "$and": [
+                    {"npc_id": {"$eq": npc_id}},
+                    {"player_id": {"$eq": player_id}},
+                ]
+            },
+            include=["documents", "metadatas"],
+        )
+    except Exception:
+        return []
+    docs = results.get("documents", [])
+    metas = results.get("metadatas", [])
+    if not docs:
+        return []
+    pairs = sorted(
+        zip(docs, metas),
+        key=lambda x: x[1].get("timestamp", ""),
+        reverse=True,
+    )
+    return [{"text": d, "timestamp": m.get("timestamp")} for d, m in pairs]
 
 
 # ---------------------------------------------------------------------------
@@ -294,7 +415,7 @@ async def retrieve_lore(
                 mode="mix",
                 only_need_context=True,
                 conversation_history=history,
-                top_k=10,
+                top_k=settings.lore_top_k,
             ),
         )
         return result if isinstance(result, str) else ""

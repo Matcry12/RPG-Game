@@ -118,6 +118,23 @@ This project is touched by **two** memory stores. Don't duplicate between them �
 If a fact is "about this codebase and should travel in the repo," it's `MEMORY.md`. If it's "about me
 / how Claude should behave across all my work," it's built-in memory.
 
+## Optimization — effective solutions, not removals
+
+When a feature has a token cost, latency, or quality problem, **find the right engineering
+solution — don't remove the feature.** We are building an AI engineer portfolio; cutting
+features to avoid hard problems is the wrong move.
+
+- **Wrong:** "this costs too many tokens, let's remove it."
+- **Right:** "this costs too many tokens — fetch by metadata filter instead of embedding query,
+  store a `summary` field at write time, or restructure the prompt."
+- **Principle:** optimize the mechanism, preserve the capability.
+- **For retrieval without a natural query** (e.g. reflection pulling recent memories): use
+  Chroma `collection.get()` with `where` metadata filters + Python sort — no fake query string,
+  no hallucinated relevance. Embedding-based retrieval is only correct when there IS a real query.
+- **For token-heavy context:** store a short deterministic `summary` field at write time
+  (no LLM needed — truncate, extract first sentence, or use the existing `_tool_event_sentence`
+  pattern) so the reflection prompt gets clean short lines without a second LLM call.
+
 ## Building a feature — reuse first, don't duplicate
 
 Before writing new code for a feature, **search for existing code that already does it or nearly does

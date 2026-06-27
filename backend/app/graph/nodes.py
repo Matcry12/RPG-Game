@@ -29,12 +29,23 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 from pydantic import ValidationError
 
 from app.config import settings
-from app.memory.sqlite_store import connect, get_disposition, init_db
+from app.memory.sqlite_store import (
+    add_to_importance_sum,
+    connect,
+    get_disposition,
+    init_db,
+    reset_importance_sum,
+)
 from app.memory.vector_store import (
+    get_beliefs_collection,
     get_client,
     get_episodic_collection,
+    retrieve_beliefs,
     retrieve_episodic,
+    retrieve_episodic_scored,
+    retrieve_for_reflection,
     retrieve_lore,
+    write_belief,
     write_episodic,
 )
 from app.serving.llm import get_agent_llm
@@ -48,12 +59,6 @@ logger = logging.getLogger(__name__)
 # Max agent LLM calls that may carry tools per turn (ADR-0007/0009): bounds Groq spend and
 # guarantees termination. On the overflow turn the agent is called WITHOUT tools, so it must
 # produce a reply — the loop always ends on prose, never on a dropped tool call.
-MAX_AGENT_TURNS = 3
-
-# Most recent conversation messages injected into the persona prompt. The full thread stays
-# checkpointed; this only bounds prompt size (review HIGH-2).
-HISTORY_WINDOW_MESSAGES = 10
-
 # Map tool name strings to their Pydantic schema classes (for the gate).
 _TOOL_SCHEMA_MAP: dict[str, type] = {
     "UpdateDisposition": UpdateDisposition,
@@ -79,6 +84,69 @@ def _tool_event_sentence(gate: dict) -> str:
         f"Your opinion of the player shifted by {gate.get('clamped_delta')} "
         f"(now {gate.get('new_score')})."
     )
+
+
+def _tool_importance(gate: dict) -> int:
+    """Map an accepted gate result to its importance score (S7 design — ADR-0013).
+
+    UpdateDisposition: abs(delta) reflects the actual relationship shift.
+    GiveReward/StartQuest: fixed values from config so they're tunable in one place.
+    """
+    if gate.get("clamped_delta") is not None:
+        return min(settings.importance_max, abs(gate["clamped_delta"]))
+    if gate.get("granted_item"):
+        return settings.importance_give_reward
+    if gate.get("quest_id"):
+        return settings.importance_start_quest
+    return 0
+
+
+async def _run_reflection(
+    npc_id: str,
+    player_id: str,
+    episodic,
+    chroma_client,
+    persona_text: str,
+) -> None:
+    """Pull high-importance events, ask the LLM for a single belief, write it to beliefs."""
+    events = retrieve_for_reflection(
+        episodic,
+        npc_id=npc_id,
+        player_id=player_id,
+        min_importance=settings.reflection_min_importance,
+        limit=settings.reflection_event_limit,
+    )
+    if not events:
+        return
+
+    event_lines = "\n".join(f"- {e['text']}" for e in events)
+    llm = get_agent_llm(with_tools=False)
+    result = await llm.ainvoke(
+        [
+            SystemMessage(
+                content=(
+                    f"{persona_text}\n\nYou are reflecting privately on your recent "
+                    "interactions with the traveller. Based only on what actually happened, "
+                    "form a single clear conclusion about them."
+                )
+            ),
+            HumanMessage(
+                content=(
+                    f"Recent events:\n{event_lines}\n\n"
+                    "Despite any contradictions, what is your SINGLE strongest feeling or "
+                    "conclusion about this player? One sentence, in your voice, first person."
+                )
+            ),
+        ]
+    )
+    belief_text = result.content.strip() if isinstance(result.content, str) else ""
+    if not belief_text:
+        return
+
+    ts = datetime.now(timezone.utc).isoformat()
+    beliefs = get_beliefs_collection(chroma_client)
+    write_belief(beliefs, npc_id=npc_id, player_id=player_id, text=belief_text, timestamp=ts)
+    logger.info("S7 reflection written for (%s,%s): %r", npc_id, player_id, belief_text)
 
 
 def _persona_system(state: TurnState) -> SystemMessage:
@@ -146,16 +214,16 @@ async def retrieve_context(state: TurnState) -> dict:
         )
 
     recalled: list[dict] = []
+    client = get_client(settings.chroma_path)
     try:
-        client = get_client(settings.chroma_path)
         episodic = get_episodic_collection(client)
         if settings.memory_stream:
             recalled = retrieve_episodic_scored(
-                episodic, npc_id=npc_id, player_id=player_id, query=message, k=3
+                episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
             )
         else:
             recalled = retrieve_episodic(
-                episodic, npc_id=npc_id, player_id=player_id, query=message, k=3
+                episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
             )
     except Exception as exc:  # recall is best-effort context, never fatal
         logger.warning(
@@ -180,11 +248,23 @@ async def retrieve_context(state: TurnState) -> dict:
             f"\n\nThings you remember from past encounters with this player:\n{lines}"
         )
 
+    if settings.reflection:
+        try:
+            beliefs_col = get_beliefs_collection(client)
+            beliefs = retrieve_beliefs(beliefs_col, npc_id=npc_id, player_id=player_id)
+            if beliefs:
+                belief_lines = "\n".join(f"- {b['text']}" for b in beliefs)
+                memory_block += f"\n\nYour current beliefs about this player:\n{belief_lines}"
+        except Exception as exc:
+            logger.warning(
+                "Beliefs recall failed (non-fatal) — (%s,%s): %s", npc_id, player_id, exc
+            )
+
     lore_block = ""
     grounded = False
     if settings.grounding_gate:
         lore_history: list[dict] = []
-        for msg in list(state.get("history", []))[-6:]:
+        for msg in list(state.get("history", []))[-settings.lore_history_window:]:
             if isinstance(msg, HumanMessage):
                 lore_history.append({"role": "user", "content": msg.content})
             elif isinstance(msg, AIMessage):
@@ -250,9 +330,9 @@ async def agent(state: TurnState) -> dict:
     (cap reached) tools are dropped, forcing a final reply.
     """
     turns = state.get("agent_turns", 0)
-    force_reply = turns >= MAX_AGENT_TURNS
+    force_reply = turns >= settings.agent_max_turns
 
-    history = list(state.get("history", []))[-HISTORY_WINDOW_MESSAGES:]
+    history = list(state.get("history", []))[-settings.history_window:]
     loop = list(state.get("loop_messages", []))
     messages = [
         _persona_system(state),
@@ -388,6 +468,7 @@ async def write_memory(state: TurnState) -> dict:
 
     client = get_client(settings.chroma_path)
     episodic = get_episodic_collection(client)
+    turn_importance = 0
     try:
         ts = datetime.now(timezone.utc).isoformat()
 
@@ -399,18 +480,21 @@ async def write_memory(state: TurnState) -> dict:
                 player_id=player_id,
                 text=turn_text,
                 timestamp=ts,
-                importance=5 if len(message) > 80 else 3,
+                importance=settings.importance_plain_turn,
             )
+            turn_importance += settings.importance_plain_turn
 
         for gr in state.get("gate_results", []):
+            imp = _tool_importance(gr)
             write_episodic(
                 episodic,
                 npc_id=npc_id,
                 player_id=player_id,
                 text=_tool_event_sentence(gr),
                 timestamp=ts,
-                importance=8,
+                importance=imp,
             )
+            turn_importance += imp
     except Exception as exc:
         logger.warning(
             "Episodic write failed (non-fatal) — NPC: %s  Player: %s  Error: %s",
@@ -418,5 +502,30 @@ async def write_memory(state: TurnState) -> dict:
             player_id,
             exc,
         )
+
+    if settings.reflection and turn_importance > 0:
+        try:
+            conn = connect(settings.db_path)
+            try:
+                init_db(conn)
+                new_total = add_to_importance_sum(conn, npc_id, player_id, turn_importance)
+                if new_total >= settings.reflection_threshold:
+                    reset_importance_sum(conn, npc_id, player_id)
+                    await _run_reflection(
+                        npc_id,
+                        player_id,
+                        episodic,
+                        client,
+                        state.get("persona_text", ""),
+                    )
+            finally:
+                conn.close()
+        except Exception as exc:
+            logger.warning(
+                "Reflection trigger failed (non-fatal) — NPC: %s  Player: %s  Error: %s",
+                npc_id,
+                player_id,
+                exc,
+            )
 
     return {}
