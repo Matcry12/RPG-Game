@@ -67,6 +67,10 @@ game/data_*/
 .DS_Store
 Thumbs.db
 
+# ── Local-only eval overrides (use claude -p / free tooling, not for public repo) ──
+backend/eval/*_local.py
+backend/eval/ablation_results.json
+
 # ── OMC / harness scratch (keep durable docs, drop ephemera) ────
 .omc/logs/
 .omc/state/

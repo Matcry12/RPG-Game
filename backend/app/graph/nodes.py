@@ -24,7 +24,6 @@ import logging
 import sqlite3
 from datetime import datetime, timezone
 
-import groq
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import ValidationError
 
@@ -215,23 +214,24 @@ async def retrieve_context(state: TurnState) -> dict:
 
     recalled: list[dict] = []
     client = get_client(settings.chroma_path)
-    try:
-        episodic = get_episodic_collection(client)
-        if settings.memory_stream:
-            recalled = retrieve_episodic_scored(
-                episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
+    if settings.episodic_memory:
+        try:
+            episodic = get_episodic_collection(client)
+            if settings.memory_stream:
+                recalled = retrieve_episodic_scored(
+                    episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
+                )
+            else:
+                recalled = retrieve_episodic(
+                    episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
+                )
+        except Exception as exc:  # recall is best-effort context, never fatal
+            logger.warning(
+                "Episodic recall failed (degrading to no recall) — (%s,%s): %s",
+                npc_id,
+                player_id,
+                exc,
             )
-        else:
-            recalled = retrieve_episodic(
-                episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
-            )
-    except Exception as exc:  # recall is best-effort context, never fatal
-        logger.warning(
-            "Episodic recall failed (degrading to no recall) — (%s,%s): %s",
-            npc_id,
-            player_id,
-            exc,
-        )
 
     if recalled:
         logger.info(
@@ -342,18 +342,23 @@ async def agent(state: TurnState) -> dict:
     ]
 
     llm = get_agent_llm(with_tools=not force_reply).with_config(tags=["persona"])
+    final = None
     try:
         final = await _astream_agent(llm, messages)
-    except groq.BadRequestError as exc:
-        # e.g. a tool_use_failed not covered by the schema coercion — degrade to a tool-free
-        # reply. A tool-decision turn streams no prose, so nothing reached the client yet.
+    except Exception as exc:
+        # Catches BadRequestError (tool_use_failed), RateLimitError, and any other provider
+        # error. A tool-decision turn streams no prose, so nothing reached the client yet.
+        # Try once more without tools; if that also fails final stays None → '...' fallback.
         logger.warning(
-            "Groq BadRequestError in agent — forcing a tool-free reply. NPC: %s  Error: %s",
+            "Groq error in agent — forcing a tool-free reply. NPC: %s  Error: %s",
             state["npc_id"],
             exc,
         )
-        fallback = get_agent_llm(with_tools=False).with_config(tags=["persona"])
-        final = await _astream_agent(fallback, messages)
+        try:
+            fallback = get_agent_llm(with_tools=False).with_config(tags=["persona"])
+            final = await _astream_agent(fallback, messages)
+        except Exception as exc2:
+            logger.warning("Tool-free fallback also failed — NPC: %s  Error: %s", state["npc_id"], exc2)
 
     content = final.content if (final and isinstance(final.content, str)) else ""
     tool_calls = list(getattr(final, "tool_calls", None) or [])
@@ -472,7 +477,7 @@ async def write_memory(state: TurnState) -> dict:
     try:
         ts = datetime.now(timezone.utc).isoformat()
 
-        if reply.strip():
+        if settings.episodic_memory and reply.strip():
             turn_text = f'The player said: "{message}". You replied: "{reply}".'
             write_episodic(
                 episodic,
