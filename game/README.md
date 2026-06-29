@@ -1,7 +1,22 @@
-# game — Godot client
+# game - Godot client
 
-The RPG client. Talks to the backend over HTTP/WS using the contract in `../shared/contracts/`.
-Renders NPC dialogue (streamed tokens, typewriter UI) and sends player utterances to
-`/npc/{id}/talk`.
+Playable Godot 4 client slice for Ashenveil market.
 
-Not started yet — the backend spine (slices S0–S4) comes first.
+Run the backend first:
+
+```sh
+cd ../backend
+uvicorn app.main:app --reload
+```
+
+Then open this folder in Godot 4 and run the project. Move with WASD/arrows,
+walk near Mira, press `E`, type a message, and send it. The client streams
+plain text from `/npc/shopkeeper/talk` and refreshes `/npc/shopkeeper/state`.
+
+Backend URL is set in `scripts/market.gd`.
+
+Static check without Godot:
+
+```sh
+python game/check_slice.py
+```

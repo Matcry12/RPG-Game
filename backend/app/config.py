@@ -8,10 +8,18 @@ _BACKEND_DIR = Path(__file__).parent.parent
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
+    # LLM provider order — set LLM_PRIMARY to "kira" or "groq"
+    # Primary is tried first; the other is the automatic fallback on rate limits/errors.
+    llm_primary: str = "kira"
+
+    # Kira AI (OpenAI-compatible)
+    kira_api_key: str = ""
+    kira_model: str = "kira-mini-1.0"
+    kira_base_url: str = "https://kiraai.vn/api/v1"
+
+    # Groq
     groq_api_key: str = ""
     groq_model: str = "llama-3.3-70b-versatile"
-    # llama-3.3-70b-versatile 
-    # llama-3.1-8b-instant
 
     # LangSmith tracing — set to see full prompts/responses in smith.langchain.com
     langchain_tracing_v2: bool = False
@@ -33,6 +41,7 @@ class Settings(BaseSettings):
     lore_history_window: int = 6         # messages passed to LightRAG for context
 
     # Retrieval
+    episodic_memory: bool = True         # set false to disable episodic write+recall entirely (baseline ablation)
     episodic_recall_k: int = 3           # top-k episodic events per turn
     episodic_candidate_factor: int = 4   # fetch k*factor candidates before re-ranking
     reflection_event_limit: int = 10     # max events passed to the reflection prompt

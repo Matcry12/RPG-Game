@@ -60,6 +60,36 @@ The **propose/dispose loop** is the headline of the whole service:
 - **Stream tokens** from `/npc/{id}/talk`; the typewriter UI hides latency.
 - **Evals are the portfolio centerpiece** — report before/after metrics tables (persona consistency, lore grounding / hallucination rate, tool-call accuracy, adversarial hold rate).
 
+## Hard constraint — committed code uses only Groq + Ollama (no Anthropic/Claude calls)
+
+**Every file committed to git must use only Groq or Ollama Gemma.** This applies to `app/`,
+`eval/`, `data/`, and any script in the repo. Anthropic API calls and `claude -p` subprocess calls
+are **local dev tooling only** — they rely on the user's free Claude Code session, which no one
+else will have.
+
+**Pattern for local-only eval helpers:**
+- Write the canonical version using Groq (committed, GitHub-safe).
+- If a local override is needed (e.g. a better judge using Claude), create `*_local.py` alongside
+  it, add `*_local.py` to `.gitignore`, and have the runner try the local variant first with a
+  fallback to the committed version.
+- **Never put `anthropic`, `claude -p`, or any Anthropic SDK import in a committed file.**
+
+This rule has been violated multiple times. Check before every eval/tool file you write.
+
+---
+
+## Cost-first thinking — mandatory before any eval or multi-turn test
+
+Before designing or running any harness, eval, or multi-turn test, answer these three questions:
+
+1. **Do we have budget?** Count API calls, estimate tokens, check provider limits (Kira: 4 RPM free; Groq: 100k TPD free). If tight — smaller dataset, cheaper judge, or split across sessions.
+2. **Will we need to run this multiple times?** If yes, build for re-runs from the start: per-turn save to disk, config-level cache skip, `--replace` only when intentional. Never design a harness you can only afford to run once.
+3. **What happens if it fails mid-run?** If there's no save-on-failure, every crash wastes all spent tokens. Always use an `on_result` callback that writes to disk after each turn — never batch-save at the end.
+
+**Pattern:** `--smoke N` to pre-flight cheaply → per-turn cache save → parallel judge (not sequential) → `--score-only` to re-score without re-running NPC turns.
+
+---
+
 ## Workflow expectations
 
 - Consult official docs before implementing against LangGraph / FastAPI / ChromaDB / llama.cpp APIs — don't guess SDK shapes.

@@ -33,3 +33,8 @@ app = FastAPI(title="NPC Agent Service", lifespan=lifespan)
 app.include_router(talk_router)
 app.include_router(state_router)
 app.include_router(world_router)
+
+
+@app.get("/healthz")
+async def healthz() -> dict:
+    return {"status": "ok"}

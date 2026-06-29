@@ -412,7 +412,7 @@ async def retrieve_lore(
         result = await rag.aquery(
             query,
             param=QueryParam(
-                mode="mix",
+                mode="naive",
                 only_need_context=True,
                 conversation_history=history,
                 top_k=settings.lore_top_k,
