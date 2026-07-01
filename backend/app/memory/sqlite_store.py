@@ -118,7 +118,7 @@ def set_quest_state(
     state: str,
 ) -> None:
     """Upsert quest state.  Raises ValueError for unknown state strings."""
-    if state not in {"not_started", "active", "complete"}:
+    if state not in {"not_started", "active", "complete", "abandoned"}:
         raise ValueError(f"Invalid quest state: {state!r}")
     conn.execute(
         """

@@ -1,6 +1,11 @@
 # Lore Query Improvement — Cross-Session Entity Resolution
 
-**Status:** Deferred (parked 2026-06-25). Do not implement until explicitly revisited.
+**Status:** ⚠️ Partly superseded (2026-06-30). The **problem** (cross-session entity
+resolution) still stands, but the **agreed solution below — `claude -p` Haiku rewrite
+(option 2) — is rejected**: it violates the "no `claude -p` inside `app/`" production rule.
+Replaced by ADR-0015, which emits keywords + a rewritten query from a single in-app **Groq**
+extraction call. See [lore-retrieval-evaluation.md](lore-retrieval-evaluation.md). Read the
+edge-case analysis below for context, not the implementation.
 **Planned slice:** S6 (memory improvements).
 
 ---

@@ -18,7 +18,7 @@ from app.memory.sqlite_store import (
     is_reward_claimed,
     set_quest_state,
 )
-from app.tools.schemas import GiveReward, StartQuest, UpdateDisposition
+from app.tools.schemas import GiveReward, SetQuestState, UpdateDisposition
 
 
 class GateResult(BaseModel):
@@ -58,25 +58,34 @@ def validate_update_disposition(
     )
 
 
-def validate_start_quest(
-    call: StartQuest,
+def validate_set_quest_state(
+    call: SetQuestState,
     npc_id: str,
     player_id: str,
     conn: sqlite3.Connection,
     *,
     now: str,
 ) -> GateResult:
-    """Accept only if the quest exists and is in 'not_started' state."""
-    state = get_quest_state(conn, call.quest_id, player_id)
-    if state != "not_started":
-        current = f"state={state!r}" if state is not None else "quest not found"
+    """Accept only valid transitions: not_started→active (start) or active→abandoned (stop)."""
+    if call.state not in ("active", "abandoned"):
         return GateResult(
             accepted=False,
-            reason=f"quest cannot be started ({current})",
+            reason=f"invalid target state {call.state!r} — must be 'active' or 'abandoned'",
             quest_id=call.quest_id,
         )
-    set_quest_state(conn, call.quest_id, player_id, "active")
-    return GateResult(accepted=True, reason="quest started", quest_id=call.quest_id)
+    current = get_quest_state(conn, call.quest_id, player_id)
+    allowed: dict[str, str] = {"active": "not_started", "abandoned": "active"}
+    required = allowed[call.state]
+    if current != required:
+        label = "quest not found" if current is None else f"state={current!r}"
+        return GateResult(
+            accepted=False,
+            reason=f"cannot set {call.state!r} ({label})",
+            quest_id=call.quest_id,
+        )
+    set_quest_state(conn, call.quest_id, player_id, call.state)
+    label = "quest started" if call.state == "active" else "quest abandoned"
+    return GateResult(accepted=True, reason=label, quest_id=call.quest_id)
 
 
 def validate_give_reward(
@@ -112,7 +121,7 @@ def validate_give_reward(
 
 
 def validate(
-    call: UpdateDisposition | StartQuest | GiveReward,
+    call: UpdateDisposition | SetQuestState | GiveReward,
     npc_id: str,
     player_id: str,
     conn: sqlite3.Connection,
@@ -126,8 +135,8 @@ def validate(
     """
     if isinstance(call, UpdateDisposition):
         return validate_update_disposition(call, npc_id, player_id, conn, now=now)
-    if isinstance(call, StartQuest):
-        return validate_start_quest(call, npc_id, player_id, conn, now=now)
+    if isinstance(call, SetQuestState):
+        return validate_set_quest_state(call, npc_id, player_id, conn, now=now)
     if isinstance(call, GiveReward):
         return validate_give_reward(call, npc_id, player_id, conn, now=now)
     raise TypeError(f"Unknown tool call type: {type(call)!r}")

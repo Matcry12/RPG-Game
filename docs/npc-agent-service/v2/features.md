@@ -24,8 +24,11 @@ POST /npc/shopkeeper/talk
             │
             ├─ PARALLEL pre-fetch (fires immediately, before LLM call):
             │    scored episodic (recency+importance+relevance re-rank)
+            │      query = rewritten_query if full-with-lore else raw message  (ADR-0015, Option A)
             │    beliefs from Chroma   (returned together as past context)
-            │    lore via LightRAG naive  ← only if full-with-lore
+            │    lore via LightRAG  ← only if full-with-lore
+            │      current: naive (0 LLM calls). planned: mix + pre-extracted
+            │      keywords + rewritten query, 1 LLM call (ADR-0015, Proposed)
             │
             ▼
          build prompt  ──────────────────────────────────────────────────
@@ -62,6 +65,7 @@ POST /npc/shopkeeper/talk
 | Beliefs | Cached prefix, invalidated on reflection | Stable across most turns → cache hits |
 | Prompt order | Stable first (persona+beliefs), dynamic last | Maximises provider KV cache hit rate |
 | Episodic | Scored stream only (S6) — raw path removed | Better recall, negligible extra cost (Python re-rank, no LLM) |
+| Episodic query | full-with-lore reuses `rewritten_query` (free); full-no-lore uses raw message + recent history | Rewrite paid for by lore anyway; no new LLM call on the common no-lore route (ADR-0015, Option A) |
 | Lore results | Cached per `(npc_id, query_hash)`, session TTL | Lore is static — same question costs zero on repeat |
 | `MEMORY_STREAM` flag | Removed — always on | One less code path to maintain |
 

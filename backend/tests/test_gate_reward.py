@@ -1,4 +1,4 @@
-"""Unit tests for StartQuest and GiveReward gates, plus the validate() dispatcher.
+"""Unit tests for SetQuestState and GiveReward gates, plus the validate() dispatcher.
 
 Pure functions, no LLM, in-memory SQLite only.
 The gate is the safety boundary that ensures the LLM never owns truth.
@@ -19,9 +19,9 @@ from app.memory.sqlite_store import (
 from app.tools.gates import (
     validate,
     validate_give_reward,
-    validate_start_quest,
+    validate_set_quest_state,
 )
-from app.tools.schemas import GiveReward, StartQuest, UpdateDisposition
+from app.tools.schemas import GiveReward, SetQuestState, UpdateDisposition
 
 NOW = "2026-01-01T00:00:00+00:00"
 NPC = "shopkeeper"
@@ -41,50 +41,57 @@ def conn():
 
 
 # ---------------------------------------------------------------------------
-# StartQuest
+# SetQuestState — start (not_started → active)
 # ---------------------------------------------------------------------------
 
-def test_start_quest_not_started_accepted(conn):
-    """StartQuest on a not_started quest → accepted, state becomes 'active'."""
+def test_set_quest_active_from_not_started(conn):
     set_quest_state(conn, QUEST, PLAYER, "not_started")
-
-    result = validate_start_quest(StartQuest(quest_id=QUEST), NPC, PLAYER, conn, now=NOW)
-
+    result = validate_set_quest_state(SetQuestState(quest_id=QUEST, state="active"), NPC, PLAYER, conn, now=NOW)
     assert result.accepted is True
     assert result.quest_id == QUEST
     assert get_quest_state(conn, QUEST, PLAYER) == "active"
 
 
-def test_start_quest_already_active_rejected(conn):
-    """StartQuest on an already-active quest → rejected, state unchanged."""
-    # seed data from init_db sets herb_delivery to 'active' for p1
-    assert get_quest_state(conn, QUEST, PLAYER) == "active"
-
-    result = validate_start_quest(StartQuest(quest_id=QUEST), NPC, PLAYER, conn, now=NOW)
-
+def test_set_quest_active_already_active_rejected(conn):
+    # seed: herb_delivery is already 'active'
+    result = validate_set_quest_state(SetQuestState(quest_id=QUEST, state="active"), NPC, PLAYER, conn, now=NOW)
     assert result.accepted is False
-    assert "cannot be started" in result.reason
+    assert "active" in result.reason
     assert get_quest_state(conn, QUEST, PLAYER) == "active"
 
 
-def test_start_quest_complete_rejected(conn):
-    """StartQuest on a completed quest → rejected."""
+def test_set_quest_active_from_complete_rejected(conn):
     set_quest_state(conn, QUEST, PLAYER, "complete")
-
-    result = validate_start_quest(StartQuest(quest_id=QUEST), NPC, PLAYER, conn, now=NOW)
-
+    result = validate_set_quest_state(SetQuestState(quest_id=QUEST, state="active"), NPC, PLAYER, conn, now=NOW)
     assert result.accepted is False
-    assert "cannot be started" in result.reason
 
 
-def test_start_quest_missing_quest_rejected(conn):
-    """StartQuest on a quest that has no row → rejected (not found)."""
-    result = validate_start_quest(
-        StartQuest(quest_id="no_such_quest"), NPC, PLAYER, conn, now=NOW
-    )
-
+def test_set_quest_active_missing_quest_rejected(conn):
+    result = validate_set_quest_state(SetQuestState(quest_id="no_such_quest", state="active"), NPC, PLAYER, conn, now=NOW)
     assert result.accepted is False
-    assert "cannot be started" in result.reason
+
+
+# ---------------------------------------------------------------------------
+# SetQuestState — abandon (active → abandoned)
+# ---------------------------------------------------------------------------
+
+def test_set_quest_abandoned_from_active(conn):
+    # seed: herb_delivery is 'active'
+    result = validate_set_quest_state(SetQuestState(quest_id=QUEST, state="abandoned"), NPC, PLAYER, conn, now=NOW)
+    assert result.accepted is True
+    assert get_quest_state(conn, QUEST, PLAYER) == "abandoned"
+
+
+def test_set_quest_abandoned_from_not_started_rejected(conn):
+    set_quest_state(conn, QUEST, PLAYER, "not_started")
+    result = validate_set_quest_state(SetQuestState(quest_id=QUEST, state="abandoned"), NPC, PLAYER, conn, now=NOW)
+    assert result.accepted is False
+
+
+def test_set_quest_invalid_state_rejected(conn):
+    result = validate_set_quest_state(SetQuestState(quest_id=QUEST, state="complete"), NPC, PLAYER, conn, now=NOW)
+    assert result.accepted is False
+    assert "invalid target state" in result.reason
 
 
 # ---------------------------------------------------------------------------
@@ -170,9 +177,9 @@ def test_dispatcher_routes_update_disposition(conn):
     assert result.new_score == 5
 
 
-def test_dispatcher_routes_start_quest(conn):
+def test_dispatcher_routes_set_quest_state(conn):
     set_quest_state(conn, QUEST, PLAYER, "not_started")
-    call = StartQuest(quest_id=QUEST)
+    call = SetQuestState(quest_id=QUEST, state="active")
     result = validate(call, NPC, PLAYER, conn, now=NOW)
     assert result.accepted is True
     assert get_quest_state(conn, QUEST, PLAYER) == "active"

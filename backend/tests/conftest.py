@@ -95,7 +95,7 @@ def chroma():
 
     collection = MagicMock()
     collection.count.return_value = 0
-    collection.query.return_value = {"documents": [[]], "metadatas": [[]]}
+    collection.query.return_value = {"documents": [[]], "metadatas": [[]], "distances": [[]]}
 
     with (
         patch("app.graph.nodes.get_client", return_value=MagicMock()),

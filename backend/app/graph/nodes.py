@@ -20,9 +20,12 @@ The ``tool_use_failed`` type-validation 400 is cured at the schema layer (``int 
 ADR-0008); the ``try/except`` here is defense-in-depth.
 """
 
+import asyncio
 import logging
+import re
 import sqlite3
 from datetime import datetime, timezone
+from functools import lru_cache
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from pydantic import ValidationError
@@ -40,16 +43,15 @@ from app.memory.vector_store import (
     get_client,
     get_episodic_collection,
     retrieve_beliefs,
-    retrieve_episodic,
     retrieve_episodic_scored,
     retrieve_for_reflection,
     retrieve_lore,
     write_belief,
     write_episodic,
 )
-from app.serving.llm import get_agent_llm
+from app.serving.llm import extract_lore_query, get_agent_llm
 from app.tools import gates
-from app.tools.schemas import GiveReward, StartQuest, UpdateDisposition
+from app.tools.schemas import GiveReward, SetQuestState, UpdateDisposition
 
 from .state import TurnState
 
@@ -62,7 +64,7 @@ logger = logging.getLogger(__name__)
 _TOOL_SCHEMA_MAP: dict[str, type] = {
     "UpdateDisposition": UpdateDisposition,
     "GiveReward": GiveReward,
-    "StartQuest": StartQuest,
+    "SetQuestState": SetQuestState,
 }
 
 # ---------------------------------------------------------------------------
@@ -161,25 +163,122 @@ def _persona_system(state: TurnState) -> SystemMessage:
         if settings.tools_enabled
         else ""
     )
+    # Trivial turns (greetings, acks) use a short persona — name + intro only, ~50 tok vs ~430.
+    persona = (
+        _extract_short_persona(state["persona_text"])
+        if state.get("route") == "trivial"
+        else state["persona_text"]
+    )
+    lore_block = state.get("lore_block", "")
     lore_part = ""
-    if settings.grounding_gate:
-        if state.get("grounded"):
-            lore_part = (
-                f"\n\n{state.get('lore_block', '')}\n\nSpeak only to what the lore above confirms. "
-                "Do not invent names, places, events, or history beyond what is stated."
-            )
-        else:
-            lore_part = (
-                "\n\nYou have no lore records on this topic. If the traveller asks about "
-                "world facts you do not know, say so in your own voice — never invent "
-                "names, places, or history."
-            )
+    if lore_block:
+        lore_part = (
+            f"\n\n{lore_block}\n\nSpeak only to what the lore above confirms. "
+            "Do not invent names, places, events, or history beyond what is stated."
+        )
+    elif settings.grounding_gate and state.get("grounded") is False:
+        lore_part = (
+            "\n\nYou have no lore records on this topic. If the traveller asks about "
+            "world facts you do not know, say so in your own voice — never invent "
+            "names, places, or history."
+        )
     return SystemMessage(
         content=(
-            f"{state['persona_text']}{state.get('memory_block', '')}{lore_part}{guidance}\n\n"
+            f"{persona}{state.get('memory_block', '')}{lore_part}{guidance}\n\n"
             f"(current disposition toward this player: {state['current_score']})"
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# Session-scoped caches (cleared on server restart = session TTL)
+# ---------------------------------------------------------------------------
+
+_lore_cache: dict[tuple[str, int], str] = {}    # (npc_id, hash(message)) → lore text
+_beliefs_cache: dict[tuple[str, str], str] = {}  # (npc_id, player_id) → formatted belief block
+
+# ---------------------------------------------------------------------------
+# Semantic router
+# ---------------------------------------------------------------------------
+
+# Heuristic fallback — used when settings.semantic_routing is False (default for tests).
+_LORE_DOMAIN = frozenset({
+    "kingdom", "empire", "war", "battle", "history", "legend", "myth",
+    "dragon", "king", "queen", "ruler", "lord", "guild", "order",
+    "ancient", "origin", "prophecy", "artifact", "magic", "curse",
+    "city", "town", "village", "forest", "mountain", "dungeon", "bandit",
+    "tavern", "inn", "castle", "temple", "shrine",
+})
+
+
+_ROUTE_UTTERANCES: dict[str, list[str]] = {
+    "trivial": [
+        "hi", "hello", "hey", "good morning", "good evening",
+        "goodbye", "bye", "see you", "farewell",
+        "thanks", "thank you", "ok", "okay", "sure", "alright", "got it",
+    ],
+    "full-no-lore": [
+        "how are you doing", "what can you sell me", "show me your wares",
+        "I want to buy something", "what do you have for sale",
+        "help me with something", "I need your assistance",
+        "can you help me", "what do you do here",
+    ],
+    "full-with-lore": [
+        "tell me about the kingdom", "who is the king", "what happened here",
+        "history of this city", "what do you know about the bandits",
+        "tell me about the missing merchant", "who rules this land",
+        "what is the legend of", "what war happened", "explain the faction",
+        "where is the dungeon", "tell me about the artifact",
+    ],
+}
+
+
+@lru_cache(maxsize=1)
+def _build_route_centroids():
+    """Lazy-load fastembed model and pre-embed route utterances (downloads model once)."""
+    import numpy as np
+    from fastembed import TextEmbedding
+
+    model = TextEmbedding("BAAI/bge-small-en-v1.5")
+    centroids = {}
+    for route, utterances in _ROUTE_UTTERANCES.items():
+        embeds = list(model.embed(utterances))
+        centroids[route] = np.mean(embeds, axis=0)
+    return model, centroids
+
+
+def _classify_embedding(message: str) -> str:
+    import numpy as np
+
+    model, centroids = _build_route_centroids()
+    q = list(model.embed([message]))[0]
+    best = max(
+        centroids.items(),
+        key=lambda kv: np.dot(q, kv[1]) / (np.linalg.norm(q) * np.linalg.norm(kv[1]) + 1e-9),
+    )
+    return best[0]
+
+
+def _classify_heuristic(message: str) -> str:
+    words = message.lower().split()
+    if "?" in message or any(w in _LORE_DOMAIN for w in words):
+        return "full-with-lore"
+    if len(words) <= 4:
+        return "trivial"
+    return "full-no-lore"
+
+
+def _extract_short_persona(full_text: str) -> str:
+    """Name + intro paragraph only — strips YAML frontmatter and ## sections."""
+    text = re.sub(r"^---\n.*?\n---\n\n?", "", full_text, flags=re.DOTALL).strip()
+    return re.split(r"\n##", text, maxsplit=1)[0].strip()
+
+
+def classify_turn(state: TurnState) -> dict:
+    """Route the turn: trivial skips retrieval; lore-route triggers lore pre-fetch."""
+    msg = state["message"]
+    route = _classify_embedding(msg) if settings.semantic_routing else _classify_heuristic(msg)
+    return {"route": route}
 
 
 # ---------------------------------------------------------------------------
@@ -188,13 +287,14 @@ def _persona_system(state: TurnState) -> SystemMessage:
 
 
 async def retrieve_context(state: TurnState) -> dict:
-    """Entry node: reset per-turn scratch, read disposition (SQLite) + recall events (Chroma).
+    """Fetch context for this turn. Route-aware: trivial turns skip all retrieval.
 
-    Resetting scratch here (not only in the endpoint) keeps any caller safe (review HIGH-3).
-    Both stores are best-effort: a failure degrades to a neutral default rather than 500-ing
-    the turn before a token streams (review MEDIUM-3).
+    For full routes, lore (async HTTP) is kicked off as a background task immediately so
+    its network latency overlaps with the fast synchronous ChromaDB reads (episodic + beliefs).
+    Scored episodic (S6 stream) is always used; memory_stream flag is removed.
     """
     npc_id, player_id, message = state["npc_id"], state["player_id"], state["message"]
+    route = state.get("route", "full-with-lore")
 
     current_score = 0
     try:
@@ -212,93 +312,119 @@ async def retrieve_context(state: TurnState) -> dict:
             exc,
         )
 
-    recalled: list[dict] = []
+    # Trivial turns (greetings, acks) skip all retrieval — just disposition is enough.
+    if route == "trivial":
+        return {
+            "current_score": current_score,
+            "recalled": [],
+            "memory_block": "",
+            "lore_block": "",
+            "grounded": None,
+            "loop_messages": [],
+            "agent_turns": 0,
+            "gate_results": [],
+            "reply": "",
+        }
+
     client = get_client(settings.chroma_path)
-    if settings.episodic_memory:
+
+    lore_history = [
+        {"role": "user" if isinstance(m, HumanMessage) else "assistant", "content": m.content}
+        for m in list(state.get("history", []))[-settings.lore_history_window:]
+        if isinstance(m, (HumanMessage, AIMessage))
+    ]
+
+    # Mix mode (ADR-0015): one history-aware LLM call rewrites the query + extracts keywords,
+    # resolving vague references ("who is he?") before retrieval. The rewritten query feeds
+    # both LightRAG and episodic recall (Option A). Falls back to naive + raw message on failure.
+    lore_query_str = message
+    episodic_query = message
+    lore_mode = "naive"
+    ll_kw: list[str] | None = None
+    hl_kw: list[str] | None = None
+    if route == "full-with-lore" and settings.grounding_gate and settings.lore_query_mode == "mix":
+        lq = await extract_lore_query(message, lore_history[-settings.lore_rewrite_history_window:])
+        if lq:
+            lore_query_str = episodic_query = lq.rewritten_query
+            lore_mode = "mix"
+            ll_kw, hl_kw = lq.ll_keywords or None, lq.hl_keywords or None
+            logger.info("Mix rewrite (%s): %r -> %r", npc_id, message[:40], lq.rewritten_query[:60])
+
+    # Cache on the actual query+mode used: the rewritten query already encodes the history
+    # resolution, so different contexts ("who is he?") never collide and naive keeps message-keyed hits.
+    _lore_key = (npc_id, hash((lore_query_str, lore_mode)))
+
+    async def _fetch_lore() -> str:
+        if _lore_key in _lore_cache:
+            logger.info("Lore cache hit for (%s, %r)", npc_id, lore_query_str[:40])
+            return _lore_cache[_lore_key]
         try:
-            episodic = get_episodic_collection(client)
-            if settings.memory_stream:
-                recalled = retrieve_episodic_scored(
-                    episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
-                )
-            else:
-                recalled = retrieve_episodic(
-                    episodic, npc_id=npc_id, player_id=player_id, query=message, k=settings.episodic_recall_k
-                )
-        except Exception as exc:  # recall is best-effort context, never fatal
-            logger.warning(
-                "Episodic recall failed (degrading to no recall) — (%s,%s): %s",
-                npc_id,
-                player_id,
-                exc,
-            )
-
-    if recalled:
-        logger.info(
-            "S3 recall for (%s,%s): %r",
-            npc_id,
-            player_id,
-            [r["text"] for r in recalled],
-        )
-
-    memory_block = ""
-    if recalled:
-        lines = "\n".join(f"- {r['text']}" for r in recalled)
-        memory_block = (
-            f"\n\nThings you remember from past encounters with this player:\n{lines}"
-        )
-
-    if settings.reflection:
-        try:
-            beliefs_col = get_beliefs_collection(client)
-            beliefs = retrieve_beliefs(beliefs_col, npc_id=npc_id, player_id=player_id)
-            if beliefs:
-                belief_lines = "\n".join(f"- {b['text']}" for b in beliefs)
-                memory_block += f"\n\nYour current beliefs about this player:\n{belief_lines}"
-        except Exception as exc:
-            logger.warning(
-                "Beliefs recall failed (non-fatal) — (%s,%s): %s", npc_id, player_id, exc
-            )
-
-    lore_block = ""
-    grounded = False
-    if settings.grounding_gate:
-        lore_history: list[dict] = []
-        for msg in list(state.get("history", []))[-settings.lore_history_window:]:
-            if isinstance(msg, HumanMessage):
-                lore_history.append({"role": "user", "content": msg.content})
-            elif isinstance(msg, AIMessage):
-                lore_history.append({"role": "assistant", "content": msg.content})
-
-        try:
-            lore_ctx = await retrieve_lore(
-                npc_id,
-                message,
+            result = await retrieve_lore(
+                npc_id, lore_query_str,
                 history=lore_history,
                 lightrag_path=settings.lightrag_path,
                 groq_api_key=settings.groq_api_key,
                 groq_model=settings.groq_model,
+                mode=lore_mode,
+                ll_keywords=ll_kw,
+                hl_keywords=hl_kw,
             )
-            grounded = len(lore_ctx) >= settings.lore_context_min_chars
-            if grounded:
-                lore_block = f"\n\nRelevant lore for this conversation:\n{lore_ctx}"
-                logger.info(
-                    "S5 lore retrieved for (%s,%s): %d chars",
-                    npc_id,
-                    player_id,
-                    len(lore_ctx),
-                )
-            else:
-                logger.info(
-                    "S5 lore: no grounded context for (%s,%s)", npc_id, player_id
-                )
+            _lore_cache[_lore_key] = result
+            return result
         except Exception as exc:
-            logger.warning(
-                "Lore retrieval failed (degrading to ungrounded) — (%s,%s): %s",
-                npc_id,
-                player_id,
-                exc,
+            logger.warning("Lore retrieval failed (degrading to ungrounded) — (%s,%s): %s", npc_id, player_id, exc)
+            return ""
+
+    lore_task = asyncio.create_task(_fetch_lore()) if route == "full-with-lore" and settings.grounding_gate else None
+    if lore_task:
+        await asyncio.sleep(0)  # yield so lore's first HTTP request is sent before sync work starts
+
+    # Sync ChromaDB reads (fast, ~5 ms) while lore HTTP is in flight.
+    recalled: list[dict] = []
+    if settings.episodic_memory:
+        try:
+            episodic = get_episodic_collection(client)
+            recalled = retrieve_episodic_scored(
+                episodic, npc_id=npc_id, player_id=player_id, query=episodic_query, k=settings.episodic_recall_k
             )
+            if recalled:
+                logger.info("S3 recall for (%s,%s): %r", npc_id, player_id, [r["text"] for r in recalled])
+        except Exception as exc:
+            logger.warning("Episodic recall failed (degrading to no recall) — (%s,%s): %s", npc_id, player_id, exc)
+
+    belief_block = ""
+    if settings.reflection:
+        _belief_key = (npc_id, player_id)
+        if _belief_key in _beliefs_cache:
+            belief_block = _beliefs_cache[_belief_key]
+        else:
+            try:
+                beliefs_col = get_beliefs_collection(client)
+                beliefs = retrieve_beliefs(beliefs_col, npc_id=npc_id, player_id=player_id)
+                if beliefs:
+                    belief_block = "\n\nYour current beliefs about this player:\n" + "\n".join(f"- {b['text']}" for b in beliefs)
+                _beliefs_cache[_belief_key] = belief_block
+            except Exception as exc:
+                logger.warning("Beliefs recall failed (non-fatal) — (%s,%s): %s", npc_id, player_id, exc)
+
+    lore_ctx = await lore_task if lore_task else ""
+
+    # Build prompt blocks.
+    memory_block = ""
+    if recalled:
+        lines = "\n".join(f"- {r['text']}" for r in recalled)
+        memory_block = f"\n\nThings you remember from past encounters with this player:\n{lines}"
+    memory_block += belief_block
+
+    lore_block = ""
+    grounded = None  # None = lore not attempted (full-no-lore); False = attempted, not found
+    if route == "full-with-lore" and settings.grounding_gate:
+        grounded = len(lore_ctx) >= settings.lore_context_min_chars
+        if grounded:
+            lore_block = f"\n\nRelevant lore for this conversation:\n{lore_ctx}"
+            logger.info("S5 lore retrieved for (%s,%s): %d chars", npc_id, player_id, len(lore_ctx))
+        else:
+            logger.info("S5 lore: no grounded context for (%s,%s)", npc_id, player_id)
 
     return {
         "current_score": current_score,
@@ -306,7 +432,6 @@ async def retrieve_context(state: TurnState) -> dict:
         "memory_block": memory_block,
         "lore_block": lore_block,
         "grounded": grounded,
-        # Reset per-turn scratch (overwrite, no reducer).
         "loop_messages": [],
         "agent_turns": 0,
         "gate_results": [],
@@ -523,6 +648,7 @@ async def write_memory(state: TurnState) -> dict:
                         client,
                         state.get("persona_text", ""),
                     )
+                    _beliefs_cache.pop((npc_id, player_id), None)
             finally:
                 conn.close()
         except Exception as exc:

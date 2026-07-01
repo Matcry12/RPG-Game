@@ -10,7 +10,7 @@ class Settings(BaseSettings):
 
     # LLM provider order — set LLM_PRIMARY to "kira" or "groq"
     # Primary is tried first; the other is the automatic fallback on rate limits/errors.
-    llm_primary: str = "kira"
+    llm_primary: str = "groq"
 
     # Kira AI (OpenAI-compatible)
     kira_api_key: str = ""
@@ -30,14 +30,13 @@ class Settings(BaseSettings):
     chroma_path: Path = _BACKEND_DIR / "data" / "chroma"
     checkpoint_path: Path = _BACKEND_DIR / "data" / "checkpoints.db"
     tools_enabled: bool = True
+    semantic_routing: bool = False        # set True to use fastembed embeddings; False uses heuristic (default for tests)
     lightrag_path: Path = _BACKEND_DIR / "data" / "lightrag"
     grounding_gate: bool = True
     lore_context_min_chars: int = 100
-    memory_stream: bool = False
-
     # Agent loop
     agent_max_turns: int = 3
-    history_window: int = 10             # messages from checkpoint injected into prompt
+    history_window: int = 2              # raw turns injected into prompt (scored episodic covers older context)
     lore_history_window: int = 6         # messages passed to LightRAG for context
 
     # Retrieval
@@ -45,7 +44,11 @@ class Settings(BaseSettings):
     episodic_recall_k: int = 3           # top-k episodic events per turn
     episodic_candidate_factor: int = 4   # fetch k*factor candidates before re-ranking
     reflection_event_limit: int = 10     # max events passed to the reflection prompt
-    lore_top_k: int = 10                 # top-k nodes LightRAG returns
+    lore_top_k: int = 4                  # top-k nodes LightRAG returns (capped for NPC dialogue)
+    lore_chunk_top_k: int = 6            # max chunks LightRAG returns per query
+    lore_max_total_tokens: int = 2000    # hard ceiling on lore context size injected into prompt
+    lore_query_mode: str = "naive"       # "naive" (raw query, 0 extra LLM) | "mix" (history-aware rewrite + graph)
+    lore_rewrite_history_window: int = 4 # recent turns fed to the mix-mode query-rewrite prompt
 
     # Memory stream scoring weights (S6, Park et al. 2023) — must sum to 1
     stream_alpha: float = 0.35           # recency weight

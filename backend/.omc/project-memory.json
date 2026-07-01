@@ -1,0 +1,324 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1782725792667,
+  "projectRoot": "/home/matcry/Developer/RPG-Game/backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "Python",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "pyproject.toml"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "fastapi",
+        "version": null,
+        "category": "backend"
+      },
+      {
+        "name": "pytest",
+        "version": null,
+        "category": "testing"
+      }
+    ],
+    "packageManager": null,
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": "cd /home/matcry/Developer/RPG-Game/backend\necho \"=== lore settings in .env.example? ===\"\ngrep -in \"lore\\|LORE\" .env.example || echo \"(none)\"\necho \"=== quick test count ===\"\nuv run pytest -q 2>&1 | tail -2",
+    "lintCommand": "ruff check",
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": "camelCase/PascalCase",
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "app",
+      "lib",
+      "tests"
+    ],
+    "gitBranches": {
+      "defaultBranch": "main",
+      "branchingStrategy": null
+    }
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "app": {
+      "path": "app",
+      "purpose": "Application code",
+      "fileCount": 3,
+      "lastAccessed": 1782725792663,
+      "keyFiles": [
+        "__init__.py",
+        "config.py",
+        "main.py"
+      ]
+    },
+    "data": {
+      "path": "data",
+      "purpose": "Data files",
+      "fileCount": 5,
+      "lastAccessed": 1782725792663,
+      "keyFiles": [
+        "checkpoints.db",
+        "checkpoints.db-shm",
+        "checkpoints.db-wal",
+        "npc.db",
+        "seed_lore_claude.py"
+      ]
+    },
+    "eval": {
+      "path": "eval",
+      "purpose": null,
+      "fileCount": 10,
+      "lastAccessed": 1782725792664,
+      "keyFiles": [
+        "__init__.py",
+        "ablation_results.json",
+        "judge.py",
+        "judge_local.py",
+        "run_ablation.py"
+      ]
+    },
+    "lib": {
+      "path": "lib",
+      "purpose": "Library code",
+      "fileCount": 0,
+      "lastAccessed": 1782725792665,
+      "keyFiles": []
+    },
+    "npc_agent_service.egg-info": {
+      "path": "npc_agent_service.egg-info",
+      "purpose": null,
+      "fileCount": 5,
+      "lastAccessed": 1782725792665,
+      "keyFiles": [
+        "PKG-INFO",
+        "SOURCES.txt",
+        "dependency_links.txt",
+        "requires.txt",
+        "top_level.txt"
+      ]
+    },
+    "tests": {
+      "path": "tests",
+      "purpose": "Test files",
+      "fileCount": 14,
+      "lastAccessed": 1782725792665,
+      "keyFiles": [
+        "__init__.py",
+        "conftest.py",
+        "test_gate_disposition.py",
+        "test_gate_reward.py",
+        "test_reflection_s7.py"
+      ]
+    },
+    "app/api": {
+      "path": "app/api",
+      "purpose": "API routes",
+      "fileCount": 4,
+      "lastAccessed": 1782725792666,
+      "keyFiles": [
+        "__init__.py",
+        "state.py",
+        "talk.py"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "app/graph/nodes.py",
+      "accessCount": 40,
+      "lastAccessed": 1782836606360,
+      "type": "file"
+    },
+    {
+      "path": "eval/run_ablation.py",
+      "accessCount": 22,
+      "lastAccessed": 1782588755463,
+      "type": "file"
+    },
+    {
+      "path": "app/memory/vector_store.py",
+      "accessCount": 13,
+      "lastAccessed": 1782836845879,
+      "type": "file"
+    },
+    {
+      "path": ".venv/lib/python3.13/site-packages/lightrag/operate.py",
+      "accessCount": 12,
+      "lastAccessed": 1782835946134,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_subsystems.py",
+      "accessCount": 12,
+      "lastAccessed": 1782836688085,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_s9_routing.py",
+      "accessCount": 11,
+      "lastAccessed": 1782726063732,
+      "type": "file"
+    },
+    {
+      "path": "app/serving/llm.py",
+      "accessCount": 9,
+      "lastAccessed": 1782836491624,
+      "type": "file"
+    },
+    {
+      "path": "app/config.py",
+      "accessCount": 8,
+      "lastAccessed": 1782836461007,
+      "type": "file"
+    },
+    {
+      "path": "app/tools/gates.py",
+      "accessCount": 6,
+      "lastAccessed": 1782835820343,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_gate_reward.py",
+      "accessCount": 5,
+      "lastAccessed": 1782828859446,
+      "type": "file"
+    },
+    {
+      "path": ".venv/lib/python3.13/site-packages/lightrag/lightrag.py",
+      "accessCount": 5,
+      "lastAccessed": 1782835932980,
+      "type": "file"
+    },
+    {
+      "path": ".env.example",
+      "accessCount": 5,
+      "lastAccessed": 1782874251008,
+      "type": "file"
+    },
+    {
+      "path": "eval/judge.py",
+      "accessCount": 3,
+      "lastAccessed": 1782574124956,
+      "type": "file"
+    },
+    {
+      "path": "pyproject.toml",
+      "accessCount": 3,
+      "lastAccessed": 1782721716366,
+      "type": "file"
+    },
+    {
+      "path": "tests/conftest.py",
+      "accessCount": 3,
+      "lastAccessed": 1782753466142,
+      "type": "file"
+    },
+    {
+      "path": "app/tools/schemas.py",
+      "accessCount": 3,
+      "lastAccessed": 1782835804051,
+      "type": "file"
+    },
+    {
+      "path": ".venv/lib/python3.13/site-packages/lightrag/prompt.py",
+      "accessCount": 3,
+      "lastAccessed": 1782835900003,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_recall_s3.py",
+      "accessCount": 2,
+      "lastAccessed": 1782721052241,
+      "type": "file"
+    },
+    {
+      "path": "app/memory/sqlite_store.py",
+      "accessCount": 2,
+      "lastAccessed": 1782828799690,
+      "type": "file"
+    },
+    {
+      "path": "app/api/talk.py",
+      "accessCount": 2,
+      "lastAccessed": 1782835820401,
+      "type": "file"
+    },
+    {
+      "path": ".venv/lib/python3.13/site-packages/lightrag/utils.py",
+      "accessCount": 2,
+      "lastAccessed": 1782835879428,
+      "type": "file"
+    },
+    {
+      "path": ".venv/lib/python3.13/site-packages/lightrag/base.py",
+      "accessCount": 2,
+      "lastAccessed": 1782835953340,
+      "type": "file"
+    },
+    {
+      "path": "eval/judge_local.py",
+      "accessCount": 1,
+      "lastAccessed": 1782574051428,
+      "type": "file"
+    },
+    {
+      "path": "eval/s8_ablation_run1.md",
+      "accessCount": 1,
+      "lastAccessed": 1782577212047,
+      "type": "file"
+    },
+    {
+      "path": "eval/s8_ablation_run2.md",
+      "accessCount": 1,
+      "lastAccessed": 1782589100905,
+      "type": "file"
+    },
+    {
+      "path": "tests/test_talk_lore_s5.py",
+      "accessCount": 1,
+      "lastAccessed": 1782720956111,
+      "type": "file"
+    },
+    {
+      "path": "app/memory/stream.py",
+      "accessCount": 1,
+      "lastAccessed": 1782753471570,
+      "type": "file"
+    },
+    {
+      "path": "data/personas/shopkeeper.md",
+      "accessCount": 1,
+      "lastAccessed": 1782829537321,
+      "type": "file"
+    },
+    {
+      "path": "app/serving/__init__.py",
+      "accessCount": 1,
+      "lastAccessed": 1782835795160,
+      "type": "file"
+    },
+    {
+      "path": "app/graph/state.py",
+      "accessCount": 1,
+      "lastAccessed": 1782835813835,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

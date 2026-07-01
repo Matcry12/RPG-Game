@@ -25,6 +25,7 @@ class TurnState(TypedDict, total=False):
     player_id: str
     message: str
     persona_text: str
+    route: str  # "trivial" | "full-no-lore" | "full-with-lore" (set by classify_turn)
 
     # --- Per-turn derived context (retrieve_context node). ---
     current_score: int

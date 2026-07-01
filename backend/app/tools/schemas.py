@@ -35,7 +35,8 @@ class GiveReward(BaseModel):
     reason: str = Field(description="Brief in-world reason the NPC is giving this reward.")
 
 
-class StartQuest(BaseModel):
-    """Begin a quest the player hasn't started."""
+class SetQuestState(BaseModel):
+    """Start or abandon a quest for the player."""
 
-    quest_id: str = Field(description="ID of the quest to begin for the player.")
+    quest_id: str = Field(description="ID of the quest to update.")
+    state: str = Field(description="Target state: 'active' to start the quest, 'abandoned' to stop it.")

@@ -10,6 +10,8 @@ unit-testable without a real PersistentClient (mirrors sqlite_store.py style).
 
 import asyncio
 import functools
+import json
+import re
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -397,6 +399,20 @@ async def seed_lore(
     return len(texts)
 
 
+def _strip_lore_context(ctx: str) -> str:
+    """Reduce LightRAG's JSON-wrapped context to plain content sentences.
+
+    LightRAG returns chunks as ``{"reference_id": "", "content": "..."}`` blocks plus a
+    preamble and an (empty) reference list — ~20-50% boilerplate. We only need the lore text,
+    so pull the ``content`` values and join them. Falls back to the raw string if no content
+    blocks are found (format change / non-chunk output), so we never silently drop context.
+    """
+    contents = re.findall(r'"content":\s*"((?:[^"\\]|\\.)*)"', ctx)
+    if not contents:
+        return ctx
+    return "\n".join(json.loads(f'"{c}"') for c in contents)
+
+
 async def retrieve_lore(
     npc_id: str,
     query: str,
@@ -405,19 +421,33 @@ async def retrieve_lore(
     lightrag_path,
     groq_api_key: str,
     groq_model: str,
+    mode: str = "naive",
+    ll_keywords: list[str] | None = None,
+    hl_keywords: list[str] | None = None,
 ) -> str:
-    """Retrieve lore context for this NPC. Returns '' on miss/error (best-effort)."""
+    """Retrieve lore context for this NPC. Returns '' on miss/error (best-effort).
+
+    mode="naive" (default): pure vector chunks on `query`, no LLM call inside LightRAG.
+    mode="mix": entity graph + community + chunks. When ll/hl keywords are supplied they are
+    pre-populated on QueryParam so LightRAG SKIPS its own extraction LLM call (operate.py:4023);
+    `query` still drives the naive vector branch. `conversation_history` is omitted — under
+    only_need_context it only feeds the skipped synthesis step.
+    """
     try:
         rag = await get_lore_rag(npc_id, lightrag_path, groq_api_key, groq_model)
-        result = await rag.aquery(
-            query,
-            param=QueryParam(
-                mode="naive",
-                only_need_context=True,
-                conversation_history=history,
-                top_k=settings.lore_top_k,
-            ),
+        param = QueryParam(
+            mode=mode,
+            only_need_context=True,
+            enable_rerank=False,  # no reranker configured; keep retrieval cost flat (ADR-0015)
+            top_k=settings.lore_top_k,
+            chunk_top_k=settings.lore_chunk_top_k,
+            max_total_tokens=settings.lore_max_total_tokens,
         )
-        return result if isinstance(result, str) else ""
+        if ll_keywords:
+            param.ll_keywords = ll_keywords
+        if hl_keywords:
+            param.hl_keywords = hl_keywords
+        result = await rag.aquery(query, param=param)
+        return _strip_lore_context(result) if isinstance(result, str) else ""
     except Exception:
         return ""

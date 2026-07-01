@@ -27,6 +27,7 @@ async def test_recalled_memory_is_injected_into_persona_prompt(chroma):
     chroma.query.return_value = {
         "documents": [[KNOWN_MEMORY]],
         "metadatas": [[{"importance": 8, "timestamp": "t0"}]],
+        "distances": [[0.1]],
     }
 
     sink: list = []

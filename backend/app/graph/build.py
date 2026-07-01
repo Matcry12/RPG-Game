@@ -17,6 +17,7 @@ from app.config import settings
 
 from .nodes import (
     agent,
+    classify_turn,
     retrieve_context,
     route_after_agent,
     tools,
@@ -39,12 +40,14 @@ def build_graph(checkpointer):
     tools on the overflow turn), so the loop always terminates on a reply.
     """
     builder = StateGraph(TurnState)
+    builder.add_node("classify_turn", classify_turn)
     builder.add_node("retrieve_context", retrieve_context)
     builder.add_node("agent", agent)
     builder.add_node("tools", tools)
     builder.add_node("write_memory", write_memory)
 
-    builder.add_edge(START, "retrieve_context")
+    builder.add_edge(START, "classify_turn")
+    builder.add_edge("classify_turn", "retrieve_context")
     builder.add_edge("retrieve_context", "agent")
     builder.add_conditional_edges(
         "agent",
